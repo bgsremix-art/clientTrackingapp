@@ -22,14 +22,11 @@ jobs:
       - name: Generate iOS Folder (Expo Prebuild)
         run: npx expo prebuild --platform ios
 
-      - name: Install CocoaPods
-        run: cd ios && pod install
-
       - name: Build iOS App (Unsigned)
         run: |
           cd ios
           # Compile the app using Xcode on the GitHub Mac runner without Apple Developer account
-          xcodebuild -workspace clientTracking.xcworkspace -scheme clientTracking -configuration Release -sdk iphoneos -derivedDataPath derived_data CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO build
+          xcodebuild -workspace clientTracking.xcworkspace -scheme clientTracking -configuration Release -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath derived_data CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO build
           
           # Package the compiled .app into an .ipa file
           mkdir -p Payload
