@@ -1,0 +1,43 @@
+name: Build Unsigned iOS IPA
+
+on:
+  workflow_dispatch: # Allows you to manually trigger the build from GitHub
+
+jobs:
+  build-ios:
+    runs-on: macos-latest # This gives you a FREE Apple Mac to build on!
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Generate iOS Folder (Expo Prebuild)
+        run: npx expo prebuild --platform ios
+
+      - name: Install CocoaPods
+        run: cd ios && pod install
+
+      - name: Build iOS App (Unsigned)
+        run: |
+          cd ios
+          # Compile the app using Xcode on the GitHub Mac runner without Apple Developer account
+          xcodebuild -workspace clientTracking.xcworkspace -scheme clientTracking -configuration Release -sdk iphoneos -derivedDataPath derived_data CODE_SIGNING_ALLOWED=NO CODE_SIGN_IDENTITY="" CODE_SIGNING_REQUIRED=NO build
+          
+          # Package the compiled .app into an .ipa file
+          mkdir -p Payload
+          mv derived_data/Build/Products/Release-iphoneos/*.app Payload/
+          zip -r app.ipa Payload
+
+      - name: Upload IPA File
+        uses: actions/upload-artifact@v3
+        with:
+          name: clientTracking-iOS-IPA
+          path: ios/app.ipa
