@@ -1,7 +1,8 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { collection, doc, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
+import { db } from '../config/firebase';
+import { useAuth } from './AuthContext';
 import { Client, ProgressRecord, FoodLibraryItem, AppSettings } from '../models/types';
-import { FOOD_LIBRARY } from '../utils/mealPlanEngine';
 import { translations } from '../utils/i18n';
 
 type ClientContextType = {
@@ -20,6 +21,7 @@ type ClientContextType = {
   addIngredient: (item: FoodLibraryItem) => void;
   editIngredient: (item: FoodLibraryItem) => void;
   deleteIngredient: (id: string) => void;
+  restoreDefaultIngredients: () => void;
 };
 
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
@@ -84,58 +86,82 @@ const defaultIngredients: FoodLibraryItem[] = [
 ];
 
 export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
+  const { user } = useAuth();
+  
   const [clients, setClients] = useState<Client[]>([]);
   const [records, setRecords] = useState<ProgressRecord[]>([]);
   const [ingredients, setIngredients] = useState<FoodLibraryItem[]>([]);
   const [settings, setSettings] = useState<AppSettings>({ loseWeightCals: -500, gainMuscleCals: 300, gainWeightCals: 500, language: 'en' });
 
   useEffect(() => {
-    const load = async () => {
-      try {
-        const c = await AsyncStorage.getItem('clients');
-        const r = await AsyncStorage.getItem('records');
-        const i = await AsyncStorage.getItem('ingredients');
-        const s = await AsyncStorage.getItem('app_settings');
-        if (c) setClients(JSON.parse(c));
-        if (r) setRecords(JSON.parse(r));
-        if (s) setSettings(JSON.parse(s));
-        if (i) {
-          let loadedI = JSON.parse(i) as FoodLibraryItem[];
-          const isLatestDb = loadedI.length === defaultIngredients.length && loadedI.every(v => defaultIngredients.some(d => d.id === v.id && d.name === v.name));
-          if (!isLatestDb) {
-            await AsyncStorage.setItem('ingredients', JSON.stringify(defaultIngredients));
-            setIngredients(defaultIngredients);
-          } else {
-            setIngredients(loadedI);
-          }
-        } else {
-          setIngredients(defaultIngredients);
-        }
-      } catch (e) {
-        console.warn("Failed to load local data");
+    if (!user) {
+      setClients([]);
+      setRecords([]);
+      setIngredients([]);
+      return;
+    }
+
+    const uid = user.uid;
+
+    const unsubClients = onSnapshot(collection(db, 'users', uid, 'clients'), (snap) => {
+      setClients(snap.docs.map(d => d.data() as Client));
+    });
+
+    const unsubRecords = onSnapshot(collection(db, 'users', uid, 'records'), (snap) => {
+      setRecords(snap.docs.map(d => d.data() as ProgressRecord));
+    });
+
+    const unsubSettings = onSnapshot(doc(db, 'users', uid, 'settings', 'app_settings'), (docSnap) => {
+      if (docSnap.exists()) {
+        setSettings(docSnap.data() as AppSettings);
+      } else {
+        setSettings({ loseWeightCals: -500, gainMuscleCals: 300, gainWeightCals: 500, language: 'en' });
       }
+    });
+
+    const unsubIngredients = onSnapshot(collection(db, 'users', uid, 'ingredients'), (snap) => {
+      if (snap.empty) {
+        // Seed default ingredients to Firestore
+        defaultIngredients.forEach(ing => {
+          setDoc(doc(db, 'users', uid, 'ingredients', ing.id), ing);
+        });
+      } else {
+        setIngredients(snap.docs.map(d => d.data() as FoodLibraryItem));
+      }
+    });
+
+    return () => {
+      unsubClients();
+      unsubRecords();
+      unsubSettings();
+      unsubIngredients();
     };
-    load();
-  }, []);
+  }, [user]);
 
-  const save = async (key: string, data: any) => await AsyncStorage.setItem(key, JSON.stringify(data));
-
-  const addClient = (c: Client) => { const n = [...clients, c]; setClients(n); save('clients', n); };
-  const editClient = (c: Client) => { const n = clients.map(x => x.id === c.id ? c : x); setClients(n); save('clients', n); };
+  const addClient = (c: Client) => { if (user) setDoc(doc(db, 'users', user.uid, 'clients', c.id), c); };
+  const editClient = (c: Client) => { if (user) setDoc(doc(db, 'users', user.uid, 'clients', c.id), c); };
   const deleteClient = (id: string) => {
-    const n = clients.filter(x => x.id !== id); setClients(n); save('clients', n);
-    const nr = records.filter(r => r.clientId !== id); setRecords(nr); save('records', nr);
+    if (!user) return;
+    deleteDoc(doc(db, 'users', user.uid, 'clients', id));
+    records.filter(r => r.clientId === id).forEach(r => deleteDoc(doc(db, 'users', user.uid, 'records', r.id)));
   };
 
-  const addRecord = (r: ProgressRecord) => { const n = [...records, r]; setRecords(n); save('records', n); };
-  const editRecord = (r: ProgressRecord) => { const n = records.map(x => x.id === r.id ? r : x); setRecords(n); save('records', n); };
-  const deleteRecord = (id: string) => { const n = records.filter(x => x.id !== id); setRecords(n); save('records', n); };
+  const addRecord = (r: ProgressRecord) => { if (user) setDoc(doc(db, 'users', user.uid, 'records', r.id), r); };
+  const editRecord = (r: ProgressRecord) => { if (user) setDoc(doc(db, 'users', user.uid, 'records', r.id), r); };
+  const deleteRecord = (id: string) => { if (user) deleteDoc(doc(db, 'users', user.uid, 'records', id)); };
 
-  const addIngredient = (i: FoodLibraryItem) => { const n = [...ingredients, i]; setIngredients(n); save('ingredients', n); };
-  const editIngredient = (i: FoodLibraryItem) => { const n = ingredients.map(x => x.id === i.id ? i : x); setIngredients(n); save('ingredients', n); };
-  const deleteIngredient = (id: string) => { const n = ingredients.filter(x => x.id !== id); setIngredients(n); save('ingredients', n); };
+  const addIngredient = (i: FoodLibraryItem) => { if (user) setDoc(doc(db, 'users', user.uid, 'ingredients', i.id), i); };
+  const editIngredient = (i: FoodLibraryItem) => { if (user) setDoc(doc(db, 'users', user.uid, 'ingredients', i.id), i); };
+  const deleteIngredient = (id: string) => { if (user) deleteDoc(doc(db, 'users', user.uid, 'ingredients', id)); };
   
-  const updateSettings = (s: AppSettings) => { setSettings(s); save('app_settings', s); };
+  const restoreDefaultIngredients = () => {
+    if (!user) return;
+    defaultIngredients.forEach(ing => {
+      setDoc(doc(db, 'users', user.uid, 'ingredients', ing.id), ing);
+    });
+  };
+  
+  const updateSettings = (s: AppSettings) => { if (user) setDoc(doc(db, 'users', user.uid, 'settings', 'app_settings'), s); };
 
   const t = (key: string) => {
      const lang = settings?.language || 'en';
@@ -144,7 +170,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <ClientContext.Provider value={{ clients, records, ingredients, settings, t, addClient, editClient, deleteClient, addRecord, editRecord, deleteRecord, addIngredient, editIngredient, deleteIngredient, updateSettings }}>
+    <ClientContext.Provider value={{ clients, records, ingredients, settings, t, addClient, editClient, deleteClient, addRecord, editRecord, deleteRecord, addIngredient, editIngredient, deleteIngredient, restoreDefaultIngredients, updateSettings }}>
       {children}
     </ClientContext.Provider>
   );

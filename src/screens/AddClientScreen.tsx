@@ -6,6 +6,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { RootStackParamList } from './DashboardScreen';
 import { GoalType } from '../models/types';
 import { useClients } from '../context/ClientContext';
+import { useAuth } from '../context/AuthContext';
+import { uploadImageToFirebase } from '../utils/firebaseStorage';
 import { COLORS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { calculateBMR, calculateBMI } from '../utils/bmrEngine';
@@ -17,6 +19,7 @@ type Props = {
 
 export default function AddClientScreen({ navigation, route }: Props) {
   const { addClient, editClient, clients, addRecord, t } = useClients();
+  const { user } = useAuth();
   const editingId = route?.params?.clientId;
   const existingClient = clients.find(c => c.id === editingId);
 
@@ -29,6 +32,7 @@ export default function AddClientScreen({ navigation, route }: Props) {
   const [goal, setGoal] = useState<GoalType>('Lose Weight');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [currentWeight, setCurrentWeight] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     if (existingClient) {
@@ -55,8 +59,19 @@ export default function AddClientScreen({ navigation, route }: Props) {
     }
   };
 
-  const handleSave = () => {
-    if (!name || !height) return;
+  const handleSave = async () => {
+    if (!name || !height || !user) return;
+    
+    setIsSaving(true);
+    let finalImageUri = imageUri;
+
+    if (imageUri && imageUri.startsWith('file://')) {
+      try {
+        finalImageUri = await uploadImageToFirebase(imageUri, user.uid, 'avatars');
+      } catch (e) {
+        console.error("Failed to upload avatar", e);
+      }
+    }
     
     const clientData = {
       id: editingId || Date.now().toString(),
@@ -67,7 +82,7 @@ export default function AddClientScreen({ navigation, route }: Props) {
       gender,
       heightCM: parseInt(height) || 0,
       goal,
-      imageUri: imageUri || undefined,
+      imageUri: finalImageUri || undefined,
     };
 
     if (editingId) {
@@ -87,6 +102,7 @@ export default function AddClientScreen({ navigation, route }: Props) {
         });
       }
     }
+    setIsSaving(false);
     navigation.goBack();
   };
 
@@ -159,9 +175,9 @@ export default function AddClientScreen({ navigation, route }: Props) {
       <Text style={styles.label}>{t('email')}</Text>
       <TextInput style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" placeholder="alex.j@email.com" placeholderTextColor={COLORS.textDim} />
       
-      <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+      <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isSaving}>
         <Ionicons name="checkmark" size={20} color="#000" style={{marginRight: 8}}/>
-        <Text style={styles.saveBtnText}>{editingId ? t('saveEdits') : t('saveClient')}</Text>
+        <Text style={styles.saveBtnText}>{isSaving ? 'Saving...' : (editingId ? t('saveEdits') : t('saveClient'))}</Text>
       </TouchableOpacity>
 
     </ScrollView>

@@ -6,11 +6,15 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useClients } from '../context/ClientContext';
+import { useAuth } from '../context/AuthContext';
+import { uploadImageToFirebase } from '../utils/firebaseStorage';
 import { calculateBMR, calculateBMI } from '../utils/bmrEngine';
 
 export default function ProgressRecordScreen({ route, navigation }: any) {
     const { recordId } = route.params;
     const { records, clients, editRecord, deleteRecord, t } = useClients();
+    const { user } = useAuth();
+    const [isUploading, setIsUploading] = useState(false);
 
     const record = records.find(r => r.id === recordId);
     const client = record ? clients.find((c: any) => c.id === record.clientId) : null;
@@ -37,9 +41,22 @@ export default function ProgressRecordScreen({ route, navigation }: any) {
 
     const handleAddPhotos = async () => {
         let result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, quality: 0.5 });
-        if (!result.canceled) {
+        if (!result.canceled && user) {
+            setIsUploading(true);
             const uris = result.assets.map(a => a.uri);
-            editRecord({ ...record, photoUris: [...(record.photoUris || []), ...uris] });
+            const uploadedUris: string[] = [];
+            
+            try {
+               for (const uri of uris) {
+                  const url = await uploadImageToFirebase(uri, user.uid, 'progress_photos');
+                  uploadedUris.push(url);
+               }
+               editRecord({ ...record, photoUris: [...(record.photoUris || []), ...uploadedUris] });
+            } catch (e) {
+               console.error("Upload error", e);
+               Alert.alert("Error", "Failed to upload some photos.");
+            }
+            setIsUploading(false);
         }
     };
 
@@ -123,8 +140,8 @@ export default function ProgressRecordScreen({ route, navigation }: any) {
 
                 <View style={styles.photoHeader}>
                     <Text style={styles.sectionTitle}>Photos ({record.photoUris?.length || 0})</Text>
-                    <TouchableOpacity onPress={handleAddPhotos} style={styles.addBtn}>
-                        <Text style={styles.addBtnText}>+ Add</Text>
+                    <TouchableOpacity onPress={handleAddPhotos} style={[styles.addBtn, isUploading && {opacity: 0.5}]} disabled={isUploading}>
+                        <Text style={styles.addBtnText}>{isUploading ? 'Uploading...' : '+ Add'}</Text>
                     </TouchableOpacity>
                 </View>
 

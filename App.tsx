@@ -3,6 +3,7 @@ import { NavigationContainer, DarkTheme } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
+import { ActivityIndicator, View } from 'react-native';
 
 import DashboardScreen, { RootStackParamList } from './src/screens/DashboardScreen';
 import AddClientScreen from './src/screens/AddClientScreen';
@@ -14,12 +15,16 @@ import IngredientsLibraryScreen from './src/screens/IngredientsLibraryScreen';
 import AddIngredientScreen from './src/screens/AddIngredientScreen';
 
 import SettingsScreen from './src/screens/SettingsScreen';
+import LoginScreen from './src/screens/LoginScreen';
+import SignUpScreen from './src/screens/SignUpScreen';
 
 import { ClientProvider, useClients } from './src/context/ClientContext';
+import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { COLORS } from './src/constants/theme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const IngredientStack = createNativeStackNavigator();
+const AuthStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function ClientStackScreen() {
@@ -63,35 +68,60 @@ function IngredientStackScreen() {
 function MainApp() {
   const { t } = useClients();
   return (
-      <NavigationContainer theme={{...DarkTheme, colors: {...DarkTheme.colors, background: COLORS.background}}}>
-         <Tab.Navigator
-            screenOptions={({ route }) => ({
-                tabBarIcon: ({ focused, color, size }) => {
-                    let iconName: keyof typeof Ionicons.glyphMap = 'people';
-                    if (route.name === 'Clients L') iconName = focused ? 'people' : 'people-outline';
-                    else if (route.name === 'Ingredients') iconName = focused ? 'restaurant' : 'restaurant-outline';
-                    else if (route.name === 'Settings') iconName = focused ? 'settings' : 'settings-outline';
-                    return <Ionicons name={iconName} size={size} color={color} />;
-                },
-                tabBarActiveTintColor: COLORS.primary,
-                tabBarInactiveTintColor: COLORS.textDim,
-                tabBarStyle: { backgroundColor: COLORS.surface, borderTopColor: COLORS.border, borderTopWidth: 1 },
-                headerShown: false,
-            })}
-         >
-            <Tab.Screen name="Clients L" component={ClientStackScreen} options={{ title: t('tabClients') }} />
-            <Tab.Screen name="Ingredients" component={IngredientStackScreen} options={{ title: t('tabIngredients') }} />
-            <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t('tabSettings') }}/>
-         </Tab.Navigator>
-      </NavigationContainer>
+      <Tab.Navigator
+        screenOptions={({ route }) => ({
+            tabBarIcon: ({ focused, color, size }) => {
+                let iconName: keyof typeof Ionicons.glyphMap = 'people';
+                if (route.name === 'Clients L') iconName = focused ? 'people' : 'people-outline';
+                else if (route.name === 'Ingredients') iconName = focused ? 'restaurant' : 'restaurant-outline';
+                else if (route.name === 'Settings') iconName = focused ? 'settings' : 'settings-outline';
+                return <Ionicons name={iconName} size={size} color={color} />;
+            },
+            tabBarActiveTintColor: COLORS.primary,
+            tabBarInactiveTintColor: COLORS.textDim,
+            tabBarStyle: { backgroundColor: COLORS.surface, borderTopColor: COLORS.border, borderTopWidth: 1 },
+            headerShown: false,
+        })}
+      >
+        <Tab.Screen name="Clients L" component={ClientStackScreen} options={{ title: t('tabClients') }} />
+        <Tab.Screen name="Ingredients" component={IngredientStackScreen} options={{ title: t('tabIngredients') }} />
+        <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t('tabSettings') }}/>
+      </Tab.Navigator>
+  );
+}
+
+function RootNavigator() {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <View style={{ flex: 1, backgroundColor: COLORS.background, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={COLORS.primary} />
+      </View>
+    );
+  }
+
+  return (
+    <NavigationContainer theme={{...DarkTheme, colors: {...DarkTheme.colors, background: COLORS.background}}}>
+      {user ? (
+        <ClientProvider>
+          <MainApp />
+        </ClientProvider>
+      ) : (
+        <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+          <AuthStack.Screen name="Login" component={LoginScreen} />
+          <AuthStack.Screen name="SignUp" component={SignUpScreen} />
+        </AuthStack.Navigator>
+      )}
+    </NavigationContainer>
   );
 }
 
 export default function App() {
   return (
-    <ClientProvider>
+    <AuthProvider>
       <StatusBar style="light" />
-      <MainApp />
-    </ClientProvider>
+      <RootNavigator />
+    </AuthProvider>
   );
 }

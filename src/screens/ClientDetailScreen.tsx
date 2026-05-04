@@ -4,6 +4,8 @@ import * as ImagePicker from 'expo-image-picker';
 import { COLORS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useClients } from '../context/ClientContext';
+import { useAuth } from '../context/AuthContext';
+import { uploadImageToFirebase } from '../utils/firebaseStorage';
 import { calculateBMR, calculateBMI, getHealthyWeightRange } from '../utils/bmrEngine';
 
 export default function ClientDetailScreen({ route, navigation }: any) {
@@ -17,6 +19,8 @@ export default function ClientDetailScreen({ route, navigation }: any) {
    const [modalVisible, setModalVisible] = useState(false);
    const [newWeight, setNewWeight] = useState('');
    const [recordPhotoUris, setRecordPhotoUris] = useState<string[]>([]);
+   const [isSaving, setIsSaving] = useState(false);
+   const { user } = useAuth();
 
    if (!client) return <View style={styles.container}><Text style={styles.emptyText}>Client not found</Text></View>;
 
@@ -30,11 +34,40 @@ export default function ClientDetailScreen({ route, navigation }: any) {
       targetW = Math.round(max + 5);
    }
 
-   const handleSaveWeight = () => {
+   const handleSaveWeight = async () => {
       const w = parseFloat(newWeight);
-      if (!w) return;
-      addRecord({ id: Date.now().toString(), clientId: client.id, date: new Date().toISOString(), currentWeightKG: w, bmi: calculateBMI(w, client.heightCM), notes: '', photoUris: recordPhotoUris.length > 0 ? recordPhotoUris : undefined });
-      setNewWeight(''); setRecordPhotoUris([]); setModalVisible(false);
+      if (!w || !user) return;
+      
+      setIsSaving(true);
+      const uploadedUris: string[] = [];
+      
+      try {
+        for (const uri of recordPhotoUris) {
+          if (uri.startsWith('file://')) {
+            const uploadedUrl = await uploadImageToFirebase(uri, user.uid, 'progress_photos');
+            uploadedUris.push(uploadedUrl);
+          } else {
+            uploadedUris.push(uri);
+          }
+        }
+      } catch (e) {
+        console.error("Failed to upload progress photos", e);
+        Alert.alert("Upload Error", "Some photos failed to upload to the cloud.");
+      }
+
+      const newRecord = { 
+        id: Date.now().toString(), 
+        clientId: client.id, 
+        date: new Date().toISOString(), 
+        currentWeightKG: w, 
+        bmi: calculateBMI(w, client.heightCM), 
+        notes: '', 
+        photoUris: uploadedUris.length > 0 ? uploadedUris : [] 
+      };
+      
+      addRecord(newRecord);
+      
+      setNewWeight(''); setRecordPhotoUris([]); setModalVisible(false); setIsSaving(false);
    };
    const pickRecordImage = async () => {
       let result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsMultipleSelection: true, quality: 0.5 });
@@ -143,8 +176,10 @@ export default function ClientDetailScreen({ route, navigation }: any) {
 
                   <TextInput style={styles.input} placeholder={t('currentWeight')} placeholderTextColor={COLORS.textDim} keyboardType="numeric" value={newWeight} onChangeText={setNewWeight} autoFocus />
                   <View style={styles.modalActions}>
-                     <TouchableOpacity onPress={() => { setModalVisible(false); setNewWeight(''); setRecordPhotoUris([]); }} style={{ padding: 16 }}><Text style={{ color: COLORS.textDim, fontWeight: 'bold' }}>{t('cancel')}</Text></TouchableOpacity>
-                     <TouchableOpacity onPress={handleSaveWeight} style={styles.modalSaveBtn}><Text style={{ color: '#000', fontWeight: 'bold' }}>{t('save')}</Text></TouchableOpacity>
+                     <TouchableOpacity onPress={() => { setModalVisible(false); setNewWeight(''); setRecordPhotoUris([]); }} style={{ padding: 16 }} disabled={isSaving}><Text style={{ color: COLORS.textDim, fontWeight: 'bold' }}>{t('cancel')}</Text></TouchableOpacity>
+                     <TouchableOpacity onPress={handleSaveWeight} style={[styles.modalSaveBtn, isSaving && {opacity: 0.5}]} disabled={isSaving}>
+                        <Text style={{ color: '#000', fontWeight: 'bold' }}>{isSaving ? 'Saving...' : t('save')}</Text>
+                     </TouchableOpacity>
                   </View>
                </View>
             </KeyboardAvoidingView>

@@ -3,9 +3,11 @@ import { View, Text, StyleSheet, ScrollView, TextInput, TouchableOpacity, Alert,
 import { COLORS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useClients } from '../context/ClientContext';
+import { useAuth } from '../context/AuthContext';
 
 export default function SettingsScreen() {
-  const { settings, updateSettings, t } = useClients();
+  const { settings, updateSettings, t, restoreDefaultIngredients } = useClients();
+  const { user, logout } = useAuth();
   
   const [loseWeight, setLoseWeight] = useState(settings.loseWeightCals.toString());
   const [gainMuscle, setGainMuscle] = useState(settings.gainMuscleCals.toString());
@@ -30,12 +32,42 @@ export default function SettingsScreen() {
      // We don't automatically save, we just reset the input fields so the user can verify, then save.
   }
 
+  const handleRestoreFood = () => {
+     Alert.alert(
+        t('restoreFoodLibrary'),
+        t('restoreFoodLibraryMsg'),
+        [
+           { text: t('cancel'), style: "cancel" },
+           { text: t('restoreFoodLibrary'), onPress: () => {
+              restoreDefaultIngredients();
+              Alert.alert(t('success'), t('ingredientsRestored'));
+           }}
+        ]
+     );
+  };
+
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
       <Text style={styles.headerTitle}>{t('settingsTitle')}</Text>
 
       <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Ionicons name="person" size={24} color={COLORS.primary} />
+          <Text style={styles.cardTitle}>{t('account')}</Text>
+        </View>
+        <Text style={{color: COLORS.text, fontSize: 16, marginBottom: 16}}>{t('loggedInAs')}{user?.email}</Text>
+        
+        <TouchableOpacity style={[styles.logoutBtn, {borderColor: COLORS.primary, marginBottom: 12}]} onPress={handleRestoreFood}>
+          <Text style={[styles.logoutBtnText, {color: COLORS.primary}]}>{t('restoreFoodLibrary')}</Text>
+        </TouchableOpacity>
+        
+        <TouchableOpacity style={styles.logoutBtn} onPress={logout}>
+          <Text style={styles.logoutBtnText}>{t('logOut')}</Text>
+        </TouchableOpacity>
+      </View>
+
+      <View style={[styles.card, {marginTop: 20}]}>
         <View style={styles.cardHeader}>
           <Ionicons name="language" size={24} color={COLORS.primary} />
           <Text style={styles.cardTitle}>{t('language')}</Text>
@@ -122,5 +154,7 @@ const styles = StyleSheet.create({
   langBtn: { flex: 1, padding: 16, borderRadius: 8, backgroundColor: COLORS.background, borderWidth: 1, borderColor: COLORS.border, alignItems: 'center' },
   langBtnActive: { backgroundColor: COLORS.primary, borderColor: COLORS.primary },
   langBtnText: { color: COLORS.text, fontSize: 16, fontWeight: 'bold' },
-  langBtnTextActive: { color: '#000' }
+  langBtnTextActive: { color: '#000' },
+  logoutBtn: { backgroundColor: COLORS.surfaceLight, padding: 16, borderRadius: 8, alignItems: 'center', borderWidth: 1, borderColor: '#ff4444' },
+  logoutBtnText: { color: '#ff4444', fontSize: 16, fontWeight: 'bold' }
 });

@@ -61,6 +61,13 @@ export const translations = {
     maintainSub: 'Stabilizes at baseline TDEE',
     saveSettings: 'Save Settings',
     resetDefaults: 'Reset',
+    account: 'Account',
+    loggedInAs: 'Logged in as: ',
+    restoreFoodLibrary: 'Restore Default Food Library',
+    restoreFoodLibraryMsg: 'Are you sure you want to download all the default Cambodian ingredients back into your database? This won\'t delete your custom ingredients.',
+    logOut: 'Log Out',
+    success: 'Success',
+    ingredientsRestored: 'Ingredients have been restored to your database!',
 
     // Progress Record
     progressRecordTitle: 'Progress Record',
@@ -176,6 +183,13 @@ export const translations = {
     maintainSub: 'រក្សា TDEE',
     saveSettings: 'រក្សាទុកការកំណត់',
     resetDefaults: 'កំណត់ឡើងវិញ',
+    account: 'គណនី',
+    loggedInAs: 'ចូលប្រើដោយ: ',
+    restoreFoodLibrary: 'ទាញយកគ្រឿងផ្សំដើមមកវិញ',
+    restoreFoodLibraryMsg: 'តើអ្នកពិតជាចង់ទាញយកគ្រឿងផ្សំខ្មែរដើមទាំងអស់មកកាន់គណនីអ្នកវិញមែនទេ? វានឹងមិនលុបគ្រឿងផ្សំដែលអ្នកបានបង្កើតទេ។',
+    logOut: 'ចាកចេញ',
+    success: 'ជោគជ័យ',
+    ingredientsRestored: 'គ្រឿងផ្សំត្រូវបានទាញយកមកវិញដោយជោគជ័យ!',
 
     // Progress Record
     progressRecordTitle: 'កំណត់ត្រាការវិវឌ្ឍ',
