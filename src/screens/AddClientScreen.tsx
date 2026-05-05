@@ -32,6 +32,7 @@ export default function AddClientScreen({ navigation, route }: Props) {
   const [goal, setGoal] = useState<GoalType>('Lose Weight');
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [currentWeight, setCurrentWeight] = useState('');
+  const [targetWeight, setTargetWeight] = useState('');
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
@@ -43,6 +44,7 @@ export default function AddClientScreen({ navigation, route }: Props) {
       setGender(existingClient.gender || 'Male');
       setHeight(existingClient.heightCM?.toString() || '');
       setGoal(existingClient.goal);
+      if (existingClient.targetWeightKG) setTargetWeight(existingClient.targetWeightKG.toString());
       if (existingClient.imageUri) setImageUri(existingClient.imageUri);
     }
   }, [existingClient]);
@@ -73,7 +75,7 @@ export default function AddClientScreen({ navigation, route }: Props) {
       }
     }
     
-    const clientData = {
+    const clientData: any = {
       id: editingId || Date.now().toString(),
       name,
       phone,
@@ -81,9 +83,11 @@ export default function AddClientScreen({ navigation, route }: Props) {
       age: parseInt(age) || 0,
       gender,
       heightCM: parseInt(height) || 0,
-      goal,
-      imageUri: finalImageUri || undefined,
+      goal
     };
+
+    if (parseFloat(targetWeight)) clientData.targetWeightKG = parseFloat(targetWeight);
+    if (finalImageUri) clientData.imageUri = finalImageUri;
 
     if (editingId) {
       editClient(clientData);
@@ -119,7 +123,7 @@ export default function AddClientScreen({ navigation, route }: Props) {
       </View>
 
       <Text style={styles.label}>{t('clientName')}</Text>
-      <TextInput style={[styles.input, styles.inputActive]} value={name} onChangeText={setName} placeholder="Alex Johnson" placeholderTextColor={COLORS.textDim} />
+      <TextInput style={[styles.input, styles.inputActive]} value={name} onChangeText={setName} placeholder={t('namePlaceholder')} placeholderTextColor={COLORS.textDim} />
       
       <Text style={styles.label}>{t('currentObjective')}</Text>
       <View style={{flexDirection: 'row', gap: 8, marginBottom: 8}}>
@@ -162,15 +166,18 @@ export default function AddClientScreen({ navigation, route }: Props) {
         </TouchableOpacity>
       </View>
 
-      {!editingId && (
-         <>
-          <Text style={styles.label}>{t('currentWeight')}</Text>
-          <TextInput style={styles.input} value={currentWeight} onChangeText={setCurrentWeight} keyboardType="numeric" placeholder="Current starting weight" placeholderTextColor={COLORS.textDim} />
-         </>
-      )}
+       {!editingId && (
+          <>
+           <Text style={styles.label}>{t('currentWeight')}</Text>
+           <TextInput style={styles.input} value={currentWeight} onChangeText={setCurrentWeight} keyboardType="numeric" placeholder={t('currentWeight')} placeholderTextColor={COLORS.textDim} />
+          </>
+       )}
+
+      <Text style={styles.label}>{t('manualTargetWeight')}</Text>
+      <TextInput style={styles.input} value={targetWeight} onChangeText={setTargetWeight} keyboardType="numeric" placeholder={t('autoCalculatePlaceholder')} placeholderTextColor={COLORS.textDim} />
 
       <Text style={styles.label}>{t('phone')}</Text>
-      <TextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="+1 555-0199" placeholderTextColor={COLORS.textDim} />
+      <TextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="+855 99 XXX XXX" placeholderTextColor={COLORS.textDim} />
 
       <Text style={styles.label}>{t('email')}</Text>
       <TextInput style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" placeholder="alex.j@email.com" placeholderTextColor={COLORS.textDim} />

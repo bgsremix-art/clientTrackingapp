@@ -31,3 +31,23 @@ export function getHealthyWeightRange(heightCM: number): { min: number; max: num
   const max = Number((24.9 * (heightM * heightM)).toFixed(1));
   return { min, max };
 }
+
+/**
+ * Calculates estimated weeks to reach target weight.
+ * Assuming ~7700 kcal deficit/surplus per 1kg change.
+ */
+export function calculateEstimatedWeeks(
+  currentWeight: number,
+  targetWeight: number,
+  dailyCalorieDelta: number
+): number | string {
+  const weightDiff = Math.abs(currentWeight - targetWeight);
+  if (weightDiff < 0.1) return 0;
+  if (!dailyCalorieDelta || dailyCalorieDelta === 0) return '∞';
+
+  const caloriesPerKG = 7700;
+  const weeklyCalorieDelta = Math.abs(dailyCalorieDelta) * 7;
+  const weeklyWeightChange = weeklyCalorieDelta / caloriesPerKG;
+
+  return Math.ceil(weightDiff / weeklyWeightChange);
+}

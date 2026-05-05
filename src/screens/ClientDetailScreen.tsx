@@ -6,11 +6,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useClients } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import { uploadImageToFirebase } from '../utils/firebaseStorage';
-import { calculateBMR, calculateBMI, getHealthyWeightRange } from '../utils/bmrEngine';
+import { calculateBMR, calculateBMI, getHealthyWeightRange, calculateEstimatedWeeks } from '../utils/bmrEngine';
 
 export default function ClientDetailScreen({ route, navigation }: any) {
    const { clientId } = route.params;
-   const { clients, records, addRecord, editRecord, deleteRecord, deleteClient, t } = useClients();
+   const { clients, records, addRecord, editRecord, deleteRecord, deleteClient, settings, t } = useClients();
    const client = clients.find(c => c.id === clientId);
 
    const history = records.filter(r => r.clientId === clientId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -26,13 +26,18 @@ export default function ClientDetailScreen({ route, navigation }: any) {
 
    const { min, max } = getHealthyWeightRange(client.heightCM);
    let targetW = Math.round((min + max) / 2);
-   if (client.goal === 'Maintain Weight' && latestWeight) {
+   if (client.targetWeightKG) {
+      targetW = client.targetWeightKG;
+   } else if (client.goal === 'Maintain Weight' && latestWeight) {
       targetW = latestWeight.currentWeightKG;
    } else if (client.goal === 'Gain Muscle') {
       targetW = Math.round(max);
    } else if (client.goal === 'Gain Weight') {
       targetW = Math.round(max + 5);
    }
+
+   const calorieDelta = client.goal === 'Gain Weight' ? settings.gainWeightCals : client.goal === 'Gain Muscle' ? settings.gainMuscleCals : client.goal === 'Lose Weight' ? settings.loseWeightCals : 0;
+   const estimatedWeeks = latestWeight ? calculateEstimatedWeeks(latestWeight.currentWeightKG, targetW, calorieDelta) : 'N/A';
 
    const handleSaveWeight = async () => {
       const w = parseFloat(newWeight);
@@ -118,6 +123,7 @@ export default function ClientDetailScreen({ route, navigation }: any) {
             <Text style={styles.statsText}>BMI: {latestWeight ? (latestWeight.bmi || calculateBMI(latestWeight.currentWeightKG, client.heightCM)) : 'N/A'}</Text>
             <Text style={styles.statsText}>{t('targetWeight')}: {targetW} kg</Text>
             <Text style={styles.statsText}>{t('standardWeight')}: {min} - {max} kg</Text>
+            <Text style={styles.statsText}>{t('estimatedTime')}: <Text style={{ color: COLORS.primary, fontWeight: 'bold' }}>{estimatedWeeks} {t('weeks')}</Text></Text>
          </View>
 
          <View style={styles.sectionHeader}>

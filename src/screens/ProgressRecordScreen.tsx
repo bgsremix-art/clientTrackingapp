@@ -67,7 +67,7 @@ export default function ProgressRecordScreen({ route, navigation }: any) {
                 text: 'Delete', style: 'destructive', onPress: () => {
                     const updatedUris = [...(record.photoUris || [])];
                     updatedUris.splice(index, 1);
-                    editRecord({ ...record, photoUris: updatedUris.length > 0 ? updatedUris : undefined });
+                    editRecord({ ...record, photoUris: updatedUris.length > 0 ? updatedUris : [] });
                 }
             }
         ]);

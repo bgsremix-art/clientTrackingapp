@@ -10,6 +10,7 @@ export interface Client {
   heightCM: number;
   goal: GoalType;
   imageUri?: string;
+  targetWeightKG?: number;
 }
 
 export interface ProgressRecord {
