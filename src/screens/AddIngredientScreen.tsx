@@ -47,7 +47,7 @@ export default function AddIngredientScreen({ navigation, route }: any) {
 
   const handleSave = () => {
     if (!name) return;
-    const data: FoodLibraryItem = {
+    const data: any = {
       id: editingId || Date.now().toString(),
       name,
       category,
@@ -57,8 +57,12 @@ export default function AddIngredientScreen({ navigation, route }: any) {
       calsBase: parseFloat(cals) || 0,
       notes,
       icon: category === 'Protein' ? '🍗' : category === 'Carbs' ? '🍚' : category === 'Fruits' ? '🍎' : '🥦',
-      imageUri: imageUri || undefined,
+      imageUri: imageUri || null,
     };
+
+    // Remove any undefined values to prevent Firestore crashes
+    Object.keys(data).forEach(key => data[key] === undefined && delete data[key]);
+
     if (editingId) editIngredient(data);
     else addIngredient(data);
     navigation.goBack();
