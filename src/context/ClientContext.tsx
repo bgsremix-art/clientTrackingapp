@@ -2,13 +2,14 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
 import { collection, doc, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import { useAuth } from './AuthContext';
-import { Client, ProgressRecord, FoodLibraryItem, AppSettings } from '../models/types';
+import { Client, ProgressRecord, FoodLibraryItem, AppSettings, AttendanceRecord } from '../models/types';
 import { translations } from '../utils/i18n';
 
 type ClientContextType = {
   clients: Client[];
   records: ProgressRecord[];
   ingredients: FoodLibraryItem[];
+  attendance: AttendanceRecord[];
   settings: AppSettings;
   updateSettings: (s: AppSettings) => void;
   t: (key: string) => string;
@@ -22,17 +23,19 @@ type ClientContextType = {
   editIngredient: (item: FoodLibraryItem) => void;
   deleteIngredient: (id: string) => void;
   restoreDefaultIngredients: () => void;
+  toggleAttendance: (clientId: string, date: string, notes?: string, forceStatus?: boolean) => void;
+  deleteAttendance: (id: string) => void;
 };
 
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
 
 const defaultIngredients: FoodLibraryItem[] = [
   // Proteins
-  { id: 'p1', category: 'Protein', name: 'សាច់មាន់ (Chicken Breast)', proteinBase: 23, carbBase: 0, fatBase: 1.5, calsBase: 110, icon: '🍗' },
+  { id: 'p1', category: 'Protein', name: 'សាច់ទ្រូងមាន់ (Chicken Breast)', proteinBase: 23, carbBase: 0, fatBase: 1.5, calsBase: 110, icon: '🍗' },
   { id: 'p2', category: 'Protein', name: 'ត្រីរ៉ស់ (Snakehead Fish)', proteinBase: 19, carbBase: 0, fatBase: 1, calsBase: 90, icon: '🐟' },
   { id: 'p4', category: 'Protein', name: 'ស៊ុត (Whole Egg)', proteinBase: 13, carbBase: 1, fatBase: 10, calsBase: 155, icon: '🥚' },
   { id: 'p5', category: 'Protein', name: 'សាច់គោ (Beef)', proteinBase: 26, carbBase: 0, fatBase: 15, calsBase: 250, icon: '🥩' },
-  { id: 'p6', category: 'Protein', name: 'ត្រីស (White Fish)', proteinBase: 20, carbBase: 0, fatBase: 1.7, calsBase: 96, icon: '🐟' },
+  { id: 'p6', category: 'Protein', name: 'ត្រីសមុទ្រ (Sea Fish)', proteinBase: 20, carbBase: 0, fatBase: 1.7, calsBase: 96, icon: '🐟' },
   { id: 'p7', category: 'Protein', name: 'ត្រីសាម៉ុង (Salmon)', proteinBase: 20, carbBase: 0, fatBase: 13, calsBase: 208, icon: '🍣' },
   { id: 'p8', category: 'Protein', name: 'បង្គា (Shrimp)', proteinBase: 24, carbBase: 0.2, fatBase: 0.3, calsBase: 99, icon: '🦐' },
   
@@ -40,7 +43,7 @@ const defaultIngredients: FoodLibraryItem[] = [
   { id: 'c1', category: 'Carbs', name: 'បាយស (White Rice)', proteinBase: 3, carbBase: 28, fatBase: 0, calsBase: 130, icon: '🍚' },
   { id: 'c2', category: 'Carbs', name: 'បាយសម្រូប (Brown Rice)', proteinBase: 2.6, carbBase: 23, fatBase: 0.9, calsBase: 111, icon: '🍛' },
   { id: 'c3', category: 'Carbs', name: 'ស្រូវសាលី (Oats)', proteinBase: 13, carbBase: 68, fatBase: 6, calsBase: 379, icon: '🥣' },
-  { id: 'c4', category: 'Carbs', name: 'មី (Noodles)', proteinBase: 4, carbBase: 25, fatBase: 1, calsBase: 138, icon: '🍜' },
+
   { id: 'c5', category: 'Carbs', name: 'ដំឡូងជ្វា (Sweet Potato)', proteinBase: 1.6, carbBase: 20, fatBase: 0, calsBase: 86, icon: '🍠' },
   { id: 'c6', category: 'Carbs', name: 'នំប៉័ង (Baguette)', proteinBase: 9, carbBase: 50, fatBase: 3, calsBase: 270, icon: '🥖' },
   
@@ -91,6 +94,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   const [clients, setClients] = useState<Client[]>([]);
   const [records, setRecords] = useState<ProgressRecord[]>([]);
   const [ingredients, setIngredients] = useState<FoodLibraryItem[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [settings, setSettings] = useState<AppSettings>({ loseWeightCals: -500, gainMuscleCals: 300, gainWeightCals: 500, language: 'en' });
 
   useEffect(() => {
@@ -130,16 +134,31 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
       }
     });
 
+    const unsubAttendance = onSnapshot(collection(db, 'users', uid, 'attendance'), (snap) => {
+      setAttendance(snap.docs.map(d => d.data() as AttendanceRecord));
+    });
+
     return () => {
       unsubClients();
       unsubRecords();
       unsubSettings();
       unsubIngredients();
+      unsubAttendance();
     };
   }, [user]);
 
-  const addClient = (c: Client) => { if (user) setDoc(doc(db, 'users', user.uid, 'clients', c.id), c); };
-  const editClient = (c: Client) => { if (user) setDoc(doc(db, 'users', user.uid, 'clients', c.id), c); };
+  const cleanData = (obj: any) => {
+    const newObj = { ...obj };
+    Object.keys(newObj).forEach(key => {
+      if (newObj[key] === undefined) {
+        delete newObj[key];
+      }
+    });
+    return newObj;
+  };
+
+  const addClient = (c: Client) => { if (user) setDoc(doc(db, 'users', user.uid, 'clients', c.id), cleanData(c)); };
+  const editClient = (c: Client) => { if (user) setDoc(doc(db, 'users', user.uid, 'clients', c.id), cleanData(c)); };
   const deleteClient = (id: string) => {
     if (!user) return;
     deleteDoc(doc(db, 'users', user.uid, 'clients', id));
@@ -163,6 +182,24 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   
   const updateSettings = (s: AppSettings) => { if (user) setDoc(doc(db, 'users', user.uid, 'settings', 'app_settings'), s); };
 
+  const toggleAttendance = (clientId: string, date: string, notes?: string, forceStatus?: boolean) => {
+    if (!user) return;
+    const existing = attendance.find(a => a.clientId === clientId && a.date === date);
+    const id = existing ? existing.id : `${clientId}_${date}`;
+    const record: AttendanceRecord = {
+      id,
+      clientId,
+      date,
+      attended: forceStatus !== undefined ? forceStatus : (existing ? !existing.attended : true),
+      notes: notes !== undefined ? notes : (existing?.notes || '')
+    };
+    setDoc(doc(db, 'users', user.uid, 'attendance', id), record);
+  };
+
+  const deleteAttendance = (id: string) => {
+    if (user) deleteDoc(doc(db, 'users', user.uid, 'attendance', id));
+  };
+
   const t = (key: string) => {
      const lang = settings?.language || 'en';
      const dictionary = translations[lang as keyof typeof translations] || translations.en;
@@ -170,7 +207,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <ClientContext.Provider value={{ clients, records, ingredients, settings, t, addClient, editClient, deleteClient, addRecord, editRecord, deleteRecord, addIngredient, editIngredient, deleteIngredient, restoreDefaultIngredients, updateSettings }}>
+    <ClientContext.Provider value={{ clients, records, ingredients, attendance, settings, t, addClient, editClient, deleteClient, addRecord, editRecord, deleteRecord, addIngredient, editIngredient, deleteIngredient, restoreDefaultIngredients, updateSettings, toggleAttendance, deleteAttendance }}>
       {children}
     </ClientContext.Provider>
   );

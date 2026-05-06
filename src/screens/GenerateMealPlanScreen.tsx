@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Image, Modal, FlatList } from 'react-native';
 import { COLORS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useClients } from '../context/ClientContext';
@@ -12,10 +12,12 @@ export default function GenerateMealPlanScreen({ navigation, route }: any) {
    const client: any = clients.find(c => c.id === clientId) || { goal: 'Lose Weight', heightCM: 180, age: 25 };
 
    const [activeTab, setActiveTab] = useState('Lunch');
+   const [meal, setMeal] = useState<any>({ p: null, c: null, v: null });
+   
+   const [swapModalVisible, setSwapModalVisible] = useState(false);
+   const [activeCategory, setActiveCategory] = useState<'Protein' | 'Carbs' | 'Veggies' | null>(null);
 
    const getRand = (arr: any[]) => arr.length > 0 ? arr[Math.floor(Math.random() * arr.length)] : { name: 'N/A', icon: '❓', proteinBase: 0, carbBase: 0, fatBase: 0 };
-
-   const [meal, setMeal] = useState<any>({ p: null, c: null, v: null });
 
    useEffect(() => {
       generateNew();
@@ -39,7 +41,12 @@ export default function GenerateMealPlanScreen({ navigation, route }: any) {
 
    const bmr = calculateBMR(latestWeight, client.heightCM, client.age || 25, client.gender || 'Male');
    const tdee = bmr * 1.375; // Light activity
-   const cals = Math.max(1200, Math.round(client.goal === 'Gain Weight' ? tdee + settings.gainWeightCals : client.goal === 'Gain Muscle' ? tdee + settings.gainMuscleCals : client.goal === 'Lose Weight' ? tdee + settings.loseWeightCals : tdee));
+
+   const modifier = (client.customCalorieModifier !== undefined && client.customCalorieModifier !== null)
+      ? client.customCalorieModifier 
+      : (client.goal === 'Gain Weight' ? settings.gainWeightCals : client.goal === 'Gain Muscle' ? settings.gainMuscleCals : client.goal === 'Lose Weight' ? settings.loseWeightCals : 0);
+
+   const cals = Math.max(1200, Math.round(tdee + modifier));
 
    const renderMealImg = (item: any) => {
       if (item?.imageUri) return <Image source={{ uri: item.imageUri }} style={{ width: 24, height: 24, borderRadius: 12, marginRight: 8 }} />;
@@ -55,7 +62,25 @@ export default function GenerateMealPlanScreen({ navigation, route }: any) {
    const totalFats = Math.round((((meal.p?.fatBase || 0) * 1.5) + (meal.c?.fatBase || 0) + (meal.v?.fatBase || 0)) * servingMultiplier);
    const totalMealCals = Math.round(baseMealCals * servingMultiplier);
 
+   const handleSwap = (category: 'Protein' | 'Carbs' | 'Veggies') => {
+      setActiveCategory(category);
+      setSwapModalVisible(true);
+   }
+
+   const selectIngredient = (item: any) => {
+      if (activeCategory === 'Protein') setMeal(prev => ({ ...prev, p: item }));
+      else if (activeCategory === 'Carbs') setMeal(prev => ({ ...prev, c: item }));
+      else setMeal(prev => ({ ...prev, v: item }));
+      setSwapModalVisible(false);
+   }
+
+   const availableOptions = ingredients.filter(i => {
+      if (activeCategory === 'Veggies') return i.category === 'Veggies' || i.category === 'Fruits';
+      return i.category === activeCategory;
+   });
+
    return (
+      <View style={{flex: 1, backgroundColor: COLORS.background}}>
       <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }}>
       <View style={styles.header}>
          <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color={COLORS.text} /></TouchableOpacity>
@@ -84,22 +109,25 @@ export default function GenerateMealPlanScreen({ navigation, route }: any) {
             <Text style={styles.colTitle}>{t('currentPlan')}</Text>
 
             <Text style={styles.macroLabel}>{t('protein')}</Text>
-            <View style={styles.planItem}>
+            <TouchableOpacity style={styles.planItem} onPress={() => handleSwap('Protein')}>
                {renderMealImg(meal.p)}
                <Text style={styles.planText}>{meal.p?.name} × {Math.round(150 * servingMultiplier)}g</Text>
-            </View>
+               <Ionicons name="sync" size={16} color={COLORS.primary} />
+            </TouchableOpacity>
 
             <Text style={styles.macroLabel}>{t('carbs')}</Text>
-            <View style={styles.planItem}>
+            <TouchableOpacity style={styles.planItem} onPress={() => handleSwap('Carbs')}>
                {renderMealImg(meal.c)}
                <Text style={styles.planText}>{meal.c?.name} × {Math.round(100 * servingMultiplier)}g</Text>
-            </View>
+               <Ionicons name="sync" size={16} color={COLORS.primary} />
+            </TouchableOpacity>
 
             <Text style={styles.macroLabel}>{t('veggieFruit')}</Text>
-            <View style={styles.planItem}>
+            <TouchableOpacity style={styles.planItem} onPress={() => handleSwap('Veggies')}>
                {renderMealImg(meal.v)}
                <Text style={styles.planText}>{meal.v?.name} × {Math.round(100 * servingMultiplier)}g</Text>
-            </View>
+               <Ionicons name="sync" size={16} color={COLORS.primary} />
+            </TouchableOpacity>
          </View>
 
          <View style={styles.macroSummaryBox}>
@@ -108,18 +136,47 @@ export default function GenerateMealPlanScreen({ navigation, route }: any) {
          </View>
 
          <View style={styles.directionsCard}>
-            <Text style={styles.directionsTitle}>{t('cookingDirections')}</Text>
-            <Text style={styles.directionsText}>{t('step1')} {meal.p?.name} {t('alongWith')} {meal.c?.name}.</Text>
-            <Text style={styles.directionsText}>{t('step2')} {meal.v?.name}.</Text>
-            <Text style={styles.directionsText}>{t('step3')}</Text>
+            <Text style={styles.directionsTitle}>{t('mealPlanNote')}</Text>
+            <Text style={styles.directionsText}>• {t('noteWater')}</Text>
+            <Text style={styles.directionsText}>• {t('noteSleep')}</Text>
+            <Text style={styles.directionsText}>• {t('noteExercise')}</Text>
 
             <View style={styles.btnRow}>
-               <TouchableOpacity style={styles.btnSecondary} onPress={generateNew}><Text style={styles.btnSecondaryText}>{t('reRoll')}</Text></TouchableOpacity>
-               <TouchableOpacity style={styles.btnPrimary} onPress={() => navigation.goBack()}><Text style={styles.btnPrimaryText}>{t('confirmMealPlan')}</Text></TouchableOpacity>
+               <TouchableOpacity style={styles.btnSecondary} onPress={generateNew}>
+                  <Ionicons name="refresh" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+                  <Text style={styles.btnSecondaryText}>{t('reRoll')}</Text>
+               </TouchableOpacity>
+               <TouchableOpacity style={styles.btnPrimary} onPress={() => navigation.goBack()}>
+                  <Ionicons name="checkmark-circle" size={18} color="#000" style={{ marginRight: 6 }} />
+                  <Text style={styles.btnPrimaryText}>{t('confirmMealPlan')}</Text>
+               </TouchableOpacity>
             </View>
          </View>
-
       </ScrollView>
+
+      <Modal visible={swapModalVisible} animationType="slide" transparent>
+         <View style={styles.modalOverlay}>
+            <View style={styles.modalContent}>
+               <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>{t('swapIngredient')}</Text>
+                  <TouchableOpacity onPress={() => setSwapModalVisible(false)}><Ionicons name="close" size={24} color={COLORS.text} /></TouchableOpacity>
+               </View>
+               <FlatList 
+                  data={availableOptions}
+                  keyExtractor={item => item.id}
+                  renderItem={({item}) => (
+                     <TouchableOpacity style={styles.swapItem} onPress={() => selectIngredient(item)}>
+                        {renderMealImg(item)}
+                        <Text style={styles.swapItemText}>{item.name}</Text>
+                        <Text style={styles.swapItemMacros}>{item.calsBase} kcal/100g</Text>
+                     </TouchableOpacity>
+                  )}
+                  ListEmptyComponent={<Text style={{color: COLORS.textDim, textAlign: 'center', marginTop: 20}}>{t('noIngredients')}</Text>}
+               />
+            </View>
+         </View>
+      </Modal>
+      </View>
    );
 }
 
@@ -147,9 +204,16 @@ const styles = StyleSheet.create({
    directionsCard: { backgroundColor: COLORS.surface, marginHorizontal: 16, padding: 16, borderRadius: 12, borderWidth: 1, borderColor: COLORS.primary, marginBottom: 16 },
    directionsTitle: { color: COLORS.text, fontSize: 16, fontWeight: 'bold', marginBottom: 8 },
    directionsText: { color: COLORS.text, fontSize: 13, marginBottom: 4 },
-   btnRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
-   btnSecondary: { flex: 1, borderColor: COLORS.border, borderWidth: 1, borderRadius: 8, padding: 14, alignItems: 'center' },
-   btnSecondaryText: { color: COLORS.text, fontWeight: 'bold' },
-   btnPrimary: { flex: 1.5, backgroundColor: COLORS.primary, borderRadius: 8, padding: 14, alignItems: 'center' },
-   btnPrimaryText: { color: '#000', fontWeight: 'bold' }
+   btnRow: { flexDirection: 'row', gap: 12, marginTop: 20 },
+   btnSecondary: { flex: 1, backgroundColor: 'transparent', borderRadius: 10, padding: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.primary },
+   btnSecondaryText: { color: COLORS.primary, fontWeight: 'bold', fontSize: 14 },
+   btnPrimary: { flex: 1, backgroundColor: COLORS.primary, borderRadius: 10, padding: 14, alignItems: 'center', flexDirection: 'row', justifyContent: 'center' },
+   btnPrimaryText: { color: '#000', fontWeight: 'bold', fontSize: 14 },
+   modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.7)', justifyContent: 'flex-end' },
+   modalContent: { backgroundColor: COLORS.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: 24, height: '70%' },
+   modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+   modalTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
+   swapItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: COLORS.border },
+   swapItemText: { color: COLORS.text, fontSize: 16, flex: 1 },
+   swapItemMacros: { color: COLORS.textDim, fontSize: 12 }
 });

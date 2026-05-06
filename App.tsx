@@ -10,6 +10,7 @@ import AddClientScreen from './src/screens/AddClientScreen';
 import ClientDetailScreen from './src/screens/ClientDetailScreen';
 import GenerateMealPlanScreen from './src/screens/GenerateMealPlanScreen';
 import ProgressRecordScreen from './src/screens/ProgressRecordScreen';
+import AttendanceScreen from './src/screens/AttendanceScreen';
 
 import IngredientsLibraryScreen from './src/screens/IngredientsLibraryScreen';
 import AddIngredientScreen from './src/screens/AddIngredientScreen';
@@ -44,6 +45,7 @@ function ClientStackScreen() {
       <Stack.Screen name="ClientDetails" component={ClientDetailScreen} options={{ title: t('clientDetailsTitle'), headerShown: false }} />
       <Stack.Screen name="GenerateMealPlan" component={GenerateMealPlanScreen} options={{ title: t('generateMealPlanBtn'), headerShown: false }} />
       <Stack.Screen name="ProgressRecord" component={ProgressRecordScreen} options={{ title: t('progressHistory'), headerShown: false }} />
+      <Stack.Screen name="Attendance" component={AttendanceScreen} options={{ title: t('attendanceTitle'), headerShown: false }} />
     </Stack.Navigator>
   )
 }

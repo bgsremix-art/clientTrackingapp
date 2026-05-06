@@ -128,7 +128,7 @@ export default function ProgressRecordScreen({ route, navigation }: any) {
                     <Text style={styles.value}>{record.currentWeightKG} kg</Text>
 
                     <Text style={styles.label}>BMI</Text>
-                    <Text style={styles.value}>{record.bmi || calculateBMI(record.currentWeightKG, client ? client.heightCM : 170)}</Text>
+                    <Text style={styles.value}>{calculateBMI(record.currentWeightKG, client ? client.heightCM : 170)}</Text>
 
                     {record.notes ? (
                         <>

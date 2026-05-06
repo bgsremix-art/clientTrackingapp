@@ -10,19 +10,48 @@ import { calculateBMR, calculateBMI, getHealthyWeightRange, calculateEstimatedWe
 
 export default function ClientDetailScreen({ route, navigation }: any) {
    const { clientId } = route.params;
-   const { clients, records, addRecord, editRecord, deleteRecord, deleteClient, settings, t } = useClients();
+   const { clients, records, attendance, addRecord, editRecord, deleteRecord, deleteClient, editClient, settings, t } = useClients();
    const client = clients.find(c => c.id === clientId);
 
    const history = records.filter(r => r.clientId === clientId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
    const latestWeight = history.length > 0 ? history[0] : null;
 
    const [modalVisible, setModalVisible] = useState(false);
+   const [configModalVisible, setConfigModalVisible] = useState(false);
    const [newWeight, setNewWeight] = useState('');
    const [recordPhotoUris, setRecordPhotoUris] = useState<string[]>([]);
    const [isSaving, setIsSaving] = useState(false);
+
+   // Config States
+   const [localModifier, setLocalModifier] = useState(client?.customCalorieModifier?.toString() || '');
+   const [localKG, setLocalKG] = useState('');
+
    const { user } = useAuth();
 
    if (!client) return <View style={styles.container}><Text style={styles.emptyText}>Client not found</Text></View>;
+
+   // Initialize KG from modifier on mount or change
+   const updateKGFromModifier = (m: string) => {
+      if (m === '' || m === '-') { setLocalKG(''); return; }
+      const val = parseInt(m) || 0;
+      const kg = ((val * 30) / 7700).toFixed(1).replace('.0', '').replace('-', '');
+      setLocalKG(kg);
+   };
+
+   const updateModifierFromKG = (kg: string) => {
+      setLocalKG(kg);
+      if (kg === '') { setLocalModifier(''); return; }
+      const val = parseFloat(kg) || 0;
+      const cals = Math.round((val * 7700) / 30);
+      const sign = client.goal === 'Lose Weight' ? '-' : '';
+      setLocalModifier(sign + cals.toString());
+   };
+
+   const handleSaveConfig = () => {
+      const modifier = parseInt(localModifier);
+      editClient({ ...client, customCalorieModifier: isNaN(modifier) ? null : modifier });
+      setConfigModalVisible(false);
+   };
 
    const { min, max } = getHealthyWeightRange(client.heightCM);
    let targetW = Math.round((min + max) / 2);
@@ -36,8 +65,13 @@ export default function ClientDetailScreen({ route, navigation }: any) {
       targetW = Math.round(max + 5);
    }
 
-   const calorieDelta = client.goal === 'Gain Weight' ? settings.gainWeightCals : client.goal === 'Gain Muscle' ? settings.gainMuscleCals : client.goal === 'Lose Weight' ? settings.loseWeightCals : 0;
-   const estimatedWeeks = latestWeight ? calculateEstimatedWeeks(latestWeight.currentWeightKG, targetW, calorieDelta) : 'N/A';
+   const calorieDelta = (client.customCalorieModifier !== undefined && client.customCalorieModifier !== null) 
+      ? client.customCalorieModifier 
+      : (client.goal === 'Gain Weight' ? settings.gainWeightCals : client.goal === 'Gain Muscle' ? settings.gainMuscleCals : client.goal === 'Lose Weight' ? settings.loseWeightCals : 0);
+   
+   let estimatedWeeksRaw = latestWeight ? calculateEstimatedWeeks(latestWeight.currentWeightKG, targetW, calorieDelta) : 'N/A';
+   let estimatedWeeksDisplay = estimatedWeeksRaw === '∞' ? t('maintainingStatus') : `${estimatedWeeksRaw} ${t('weeks')}`;
+   if (estimatedWeeksRaw === 0) estimatedWeeksDisplay = t('goalReached');
 
    const handleSaveWeight = async () => {
       const w = parseFloat(newWeight);
@@ -98,13 +132,22 @@ export default function ClientDetailScreen({ route, navigation }: any) {
 
    return (
       <ScrollView style={styles.container}>
-         <View style={styles.header}>
+          <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color={COLORS.text} /></TouchableOpacity>
             <Text style={styles.headerTitle}>{t('clientDetailsTitle')}</Text>
-            <TouchableOpacity onPress={() => navigation.navigate('AddClient', { clientId: client.id })}>
-               <Ionicons name="pencil" size={24} color={COLORS.text} />
-            </TouchableOpacity>
-         </View>
+            <View style={{ flexDirection: 'row', gap: 16 }}>
+               <TouchableOpacity onPress={() => {
+                  setLocalModifier(client.customCalorieModifier?.toString() || '');
+                  updateKGFromModifier(client.customCalorieModifier?.toString() || '');
+                  setConfigModalVisible(true);
+               }}>
+                  <Ionicons name="settings-outline" size={24} color={COLORS.primary} />
+               </TouchableOpacity>
+               <TouchableOpacity onPress={() => navigation.navigate('AddClient', { clientId: client.id })}>
+                  <Ionicons name="pencil" size={24} color={COLORS.text} />
+               </TouchableOpacity>
+            </View>
+          </View>
 
          <View style={styles.profileHeader}>
             <View style={styles.avatarCircle}>
@@ -120,11 +163,22 @@ export default function ClientDetailScreen({ route, navigation }: any) {
 
          <View style={styles.statsCard}>
             <Text style={styles.statsText}>{t('latestWeight')}: {latestWeight ? latestWeight.currentWeightKG + ' kg' : 'N/A'}</Text>
-            <Text style={styles.statsText}>BMI: {latestWeight ? (latestWeight.bmi || calculateBMI(latestWeight.currentWeightKG, client.heightCM)) : 'N/A'}</Text>
+            <Text style={styles.statsText}>BMI: {latestWeight ? calculateBMI(latestWeight.currentWeightKG, client.heightCM) : 'N/A'}</Text>
             <Text style={styles.statsText}>{t('targetWeight')}: {targetW} kg</Text>
             <Text style={styles.statsText}>{t('standardWeight')}: {min} - {max} kg</Text>
-            <Text style={styles.statsText}>{t('estimatedTime')}: <Text style={{ color: COLORS.primary, fontWeight: 'bold' }}>{estimatedWeeks} {t('weeks')}</Text></Text>
+            <Text style={styles.statsText}>{t('estimatedTime')}: <Text style={{ color: COLORS.primary, fontWeight: 'bold' }}>{estimatedWeeksDisplay}</Text></Text>
          </View>
+
+          <TouchableOpacity style={styles.attendanceRow} onPress={() => navigation.navigate('Attendance', { clientId: client.id })}>
+             <View style={styles.attendanceInfo}>
+                <Ionicons name="calendar" size={24} color={COLORS.primary} />
+                <View style={{ marginLeft: 12 }}>
+                   <Text style={styles.attendanceLabel}>{t('attendanceTitle')}</Text>
+                   <Text style={styles.attendanceSub}>{attendance.filter(a => a.clientId === client.id && a.attended).length} sessions tracked</Text>
+                </View>
+             </View>
+             <Ionicons name="chevron-forward" size={24} color={COLORS.textDim} />
+          </TouchableOpacity>
 
          <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{t('progressHistory')}</Text>
@@ -191,6 +245,68 @@ export default function ClientDetailScreen({ route, navigation }: any) {
             </KeyboardAvoidingView>
          </Modal>
 
+         {/* Personal Config Modal */}
+         <Modal visible={configModalVisible} transparent animationType="fade">
+            <KeyboardAvoidingView style={styles.modalBg} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+               <View style={styles.modalCard}>
+                  <View style={styles.modalHeaderRow}>
+                     <Text style={styles.modalTitle}>{t('customCalorieTitle')}</Text>
+                     <TouchableOpacity onPress={() => setConfigModalVisible(false)}><Ionicons name="close" size={24} color={COLORS.textDim} /></TouchableOpacity>
+                  </View>
+
+                  <Text style={{ color: COLORS.textDim, fontSize: 13, marginBottom: 16 }}>{t('customCalorieDesc')}</Text>
+
+                  <View style={styles.configGroup}>
+                     <View style={styles.configRow}>
+                        <Text style={styles.configLabel}>{t('modifierKcal')}</Text>
+                        <TextInput 
+                           style={styles.configInput} 
+                           value={localModifier} 
+                           onChangeText={(v) => { setLocalModifier(v); updateKGFromModifier(v); }} 
+                           keyboardType="numbers-and-punctuation"
+                           placeholder="0"
+                           placeholderTextColor={COLORS.textDim}
+                        />
+                     </View>
+
+                     <View style={styles.configRow}>
+                        <Text style={styles.configLabel}>{client.goal === 'Lose Weight' ? t('targetKGMonthLoss') : t('targetKGMonthGain')}</Text>
+                        <TextInput 
+                           style={[styles.configInput, { color: COLORS.primary, borderColor: COLORS.primary }]} 
+                           value={localKG} 
+                           onChangeText={updateModifierFromKG} 
+                           keyboardType="numeric"
+                           placeholder="0.0"
+                           placeholderTextColor={COLORS.textDim}
+                        />
+                     </View>
+                     
+                     {((client.goal === 'Lose Weight' && parseFloat(localKG) > 4) || 
+                       (client.goal === 'Gain Muscle' && parseFloat(localKG) > 3) || 
+                       (client.goal === 'Gain Weight' && parseFloat(localKG) > 5)) && (
+                        <Text style={styles.warningText}>{t('unhealthyWarning')}</Text>
+                     )}
+                  </View>
+
+                  <TouchableOpacity style={styles.configSaveBtn} onPress={handleSaveConfig}>
+                     <Text style={styles.configSaveBtnText}>{t('save')}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity 
+                     style={{ marginTop: 12, alignItems: 'center' }} 
+                     onPress={() => {
+                        setLocalModifier('');
+                        setLocalKG('');
+                        editClient({ ...client, customCalorieModifier: null });
+                        setConfigModalVisible(false);
+                     }}
+                  >
+                     <Text style={{ color: COLORS.textDim, fontSize: 14 }}>{t('resetToDefault')}</Text>
+                  </TouchableOpacity>
+               </View>
+            </KeyboardAvoidingView>
+         </Modal>
+
       </ScrollView>
    )
 }
@@ -230,5 +346,17 @@ const styles = StyleSheet.create({
    modalTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold', marginBottom: 16 },
    input: { backgroundColor: COLORS.background, color: COLORS.text, padding: 16, borderRadius: 8, fontSize: 18, marginBottom: 24, borderWidth: 1, borderColor: COLORS.border },
    modalActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 },
-   modalSaveBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 }
+   modalSaveBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+   attendanceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.surface, marginHorizontal: 16, padding: 16, borderRadius: 12, marginBottom: 24, borderWidth: 1, borderColor: COLORS.border },
+   attendanceInfo: { flexDirection: 'row', alignItems: 'center' },
+   attendanceLabel: { color: COLORS.text, fontSize: 16, fontWeight: 'bold' },
+   attendanceSub: { color: COLORS.textDim, fontSize: 12 },
+   modalHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+   configGroup: { marginBottom: 24 },
+   configRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+   configLabel: { color: COLORS.text, fontSize: 16, fontWeight: 'bold' },
+   configInput: { backgroundColor: COLORS.background, color: COLORS.text, padding: 12, borderRadius: 8, fontSize: 16, borderWidth: 1, borderColor: COLORS.border, width: 80, textAlign: 'center' },
+   configSaveBtn: { backgroundColor: COLORS.primary, padding: 16, borderRadius: 8, alignItems: 'center' },
+   configSaveBtnText: { color: '#000', fontSize: 16, fontWeight: 'bold' },
+   warningText: { color: '#ff9800', fontSize: 12, fontWeight: 'bold', marginTop: 4, textAlign: 'center' }
 });

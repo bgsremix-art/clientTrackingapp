@@ -11,6 +11,7 @@ export interface Client {
   goal: GoalType;
   imageUri?: string;
   targetWeightKG?: number;
+  customCalorieModifier?: number;
 }
 
 export interface ProgressRecord {
@@ -34,6 +35,14 @@ export interface FoodLibraryItem {
   notes?: string;
   icon?: string;
   imageUri?: string;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  clientId: string;
+  date: string; // YYYY-MM-DD
+  attended: boolean;
+  notes?: string;
 }
 
 export interface AppSettings {

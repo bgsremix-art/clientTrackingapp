@@ -122,15 +122,15 @@ export default function SettingsScreen() {
         <View style={styles.settingGroup}>
           <View style={styles.settingRow}>
              <View style={{flex: 1}}>
-                <Text style={styles.settingLabel}>{t('loseWeight')} (Cutting)</Text>
-                <Text style={styles.settingSub}>Modifier (kcal)</Text>
+                <Text style={styles.settingLabel}>{t('loseWeight')} ({t('cutting')})</Text>
+                <Text style={styles.settingSub}>{t('modifierKcal')}</Text>
              </View>
              <TextInput style={styles.input} value={loseWeight} onChangeText={(v) => updateFromCals(v, 'lose')} keyboardType="numbers-and-punctuation" />
           </View>
 
           <View style={styles.presetContainer}>
              <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 12}}>
-                <Text style={[styles.presetLabel, {marginBottom: 0, flex: 1}]}>Target kg/month (Loss):</Text>
+                <Text style={[styles.presetLabel, {marginBottom: 0, flex: 1}]}>{t('targetKGMonthLoss')}</Text>
                 <TextInput style={styles.smallInput} value={loseWeightKG} onChangeText={(v) => updateFromKG(v, 'lose')} keyboardType="numeric" placeholder="0.0" />
              </View>
              {parseFloat(loseWeightKG) > 4 && <Text style={styles.warningText}>{t('unhealthyWarning')}</Text>}
@@ -150,15 +150,15 @@ export default function SettingsScreen() {
         <View style={styles.settingGroup}>
           <View style={styles.settingRow}>
              <View style={{flex: 1}}>
-                <Text style={styles.settingLabel}>{t('gainMuscle')} (Lean Bulk)</Text>
-                <Text style={styles.settingSub}>Modifier (kcal)</Text>
+                <Text style={styles.settingLabel}>{t('gainMuscle')} ({t('leanBulk')})</Text>
+                <Text style={styles.settingSub}>{t('modifierKcal')}</Text>
              </View>
              <TextInput style={styles.input} value={gainMuscle} onChangeText={(v) => updateFromCals(v, 'muscle')} keyboardType="numeric" />
           </View>
 
           <View style={styles.presetContainer}>
              <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 12}}>
-                <Text style={[styles.presetLabel, {marginBottom: 0, flex: 1}]}>Target kg/month (Gain):</Text>
+                <Text style={[styles.presetLabel, {marginBottom: 0, flex: 1}]}>{t('targetKGMonthGain')}</Text>
                 <TextInput style={styles.smallInput} value={gainMuscleKG} onChangeText={(v) => updateFromKG(v, 'muscle')} keyboardType="numeric" placeholder="0.0" />
              </View>
              {parseFloat(gainMuscleKG) > 3 && <Text style={styles.warningText}>{t('unhealthyWarning')}</Text>}
@@ -168,15 +168,15 @@ export default function SettingsScreen() {
         <View style={styles.settingGroup}>
           <View style={styles.settingRow}>
              <View style={{flex: 1}}>
-                <Text style={styles.settingLabel}>{t('gainWeight')} (Heavy Bulk)</Text>
-                <Text style={styles.settingSub}>Modifier (kcal)</Text>
+                <Text style={styles.settingLabel}>{t('gainWeight')} ({t('heavyBulk')})</Text>
+                <Text style={styles.settingSub}>{t('modifierKcal')}</Text>
              </View>
              <TextInput style={styles.input} value={gainWeight} onChangeText={(v) => updateFromCals(v, 'weight')} keyboardType="numeric" />
           </View>
 
           <View style={styles.presetContainer}>
              <View style={{flexDirection: 'row', alignItems: 'center', marginBottom: 12}}>
-                <Text style={[styles.presetLabel, {marginBottom: 0, flex: 1}]}>Target kg/month (Gain):</Text>
+                <Text style={[styles.presetLabel, {marginBottom: 0, flex: 1}]}>{t('targetKGMonthGain')}</Text>
                 <TextInput style={styles.smallInput} value={gainWeightKG} onChangeText={(v) => updateFromKG(v, 'weight')} keyboardType="numeric" placeholder="0.0" />
              </View>
              {parseFloat(gainWeightKG) > 5 && <Text style={styles.warningText}>{t('unhealthyWarning')}</Text>}

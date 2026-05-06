@@ -11,6 +11,7 @@ export type RootStackParamList = {
   ClientDetails: { clientId: string };
   GenerateMealPlan: { clientId: string };
   ProgressRecord: { recordId: string };
+  Attendance: { clientId: string };
 };
 
 type Props = {
