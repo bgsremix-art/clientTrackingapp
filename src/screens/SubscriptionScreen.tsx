@@ -266,7 +266,22 @@ export default function SubscriptionScreen() {
                       {deeplink && (
                         <TouchableOpacity 
                           style={styles.openBankBtn} 
-                          onPress={() => Linking.openURL(deeplink)}
+                          onPress={async () => {
+                            try {
+                              const supported = await Linking.canOpenURL(deeplink);
+                              if (supported) {
+                                await Linking.openURL(deeplink);
+                              } else {
+                                Alert.alert("Error", "No compatible banking app found to open this link.");
+                              }
+                            } catch (e) {
+                              console.log("DeepLink Error:", e);
+                              // Fallback: try opening anyway as some apps don't register schemes correctly
+                              Linking.openURL(deeplink).catch(() => {
+                                Alert.alert("Error", "Could not open the banking app.");
+                              });
+                            }
+                          }}
                         >
                           <Ionicons name="apps-outline" size={20} color="#000" />
                           <Text style={styles.openBankBtnText}>{t('payInBankApp') || 'Pay in Bank App'}</Text>

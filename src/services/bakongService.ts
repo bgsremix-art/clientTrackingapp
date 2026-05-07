@@ -95,7 +95,8 @@ export const generateDeeplink = async (qrString: string) => {
       })
     });
     const data = await response.json();
-    return data?.data?.shortLink || null;
+    console.log("Deeplink Response:", data);
+    return data?.data?.deeplink || null;
   } catch (error) {
     console.error("Generate Deeplink Error:", error);
     return null;
