@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator, Image } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator, Image, Linking } from 'react-native';
 import { COLORS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useClients } from '../context/ClientContext';
-import { generatePaymentQR, checkPaymentStatus } from '../services/bakongService';
+import { generatePaymentQR, checkPaymentStatus, generateDeeplink } from '../services/bakongService';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
@@ -15,6 +15,7 @@ export default function SubscriptionScreen() {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [qrData, setQrData] = useState<any>(null);
+  const [deeplink, setDeeplink] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
   const viewShotRef = React.useRef<any>(null);
 
@@ -70,12 +71,16 @@ export default function SubscriptionScreen() {
     { id: '1year', title: t('oneYear'), price: '$45', amount: 45, months: 12 },
   ];
 
-  const handlePlanSelect = (plan: any) => {
+  const handlePlanSelect = async (plan: any) => {
     const data = generatePaymentQR(plan.amount, 'USD');
     setSelectedPlan(plan);
     setQrData(data);
     setShowPayment(true);
     setPaymentSuccess(false);
+    
+    // Generate deeplink
+    const link = await generateDeeplink(data.qrString);
+    setDeeplink(link);
   };
 
   const handleSaveQRImage = async () => {
@@ -96,6 +101,19 @@ export default function SubscriptionScreen() {
     } catch (error) {
       console.error("Save Error:", error);
       Alert.alert("Error", "Failed to save image.");
+    }
+  };
+
+  const handleRefreshQR = async () => {
+    if (selectedPlan) {
+      const data = generatePaymentQR(selectedPlan.amount, 'USD');
+      setQrData(data);
+      setDeeplink(null);
+      setTimeLeft(300);
+      setPaymentSuccess(false);
+      
+      const link = await generateDeeplink(data.qrString);
+      setDeeplink(link);
     }
   };
 
@@ -239,10 +257,22 @@ export default function SubscriptionScreen() {
                   </ViewShot>
 
                   {timeLeft > 0 && (
-                    <TouchableOpacity style={styles.saveImageBtn} onPress={handleSaveQRImage}>
-                      <Ionicons name="download" size={20} color={COLORS.primary} />
-                      <Text style={styles.saveImageBtnText}>Save QR Image</Text>
-                    </TouchableOpacity>
+                    <View style={styles.actionButtonsRow}>
+                      <TouchableOpacity style={styles.saveImageBtn} onPress={handleSaveQRImage}>
+                        <Ionicons name="download" size={20} color={COLORS.primary} />
+                        <Text style={styles.saveImageBtnText}>{t('saveToGallery') || 'Save Image'}</Text>
+                      </TouchableOpacity>
+
+                      {deeplink && (
+                        <TouchableOpacity 
+                          style={styles.openBankBtn} 
+                          onPress={() => Linking.openURL(deeplink)}
+                        >
+                          <Ionicons name="apps-outline" size={20} color="#000" />
+                          <Text style={styles.openBankBtnText}>{t('payInBankApp') || 'Pay in Bank App'}</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
                   )}
 
                   <View style={styles.autoVerifyStatus}>
@@ -361,8 +391,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  saveImageBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 24, backgroundColor: COLORS.surfaceLight, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, marginTop: 20 },
-  saveImageBtnText: { color: COLORS.primary, fontWeight: 'bold' },
+  saveImageBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.surfaceLight, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border },
+  saveImageBtnText: { color: COLORS.primary, fontWeight: 'bold', fontSize: 13 },
+  
+  actionButtonsRow: { flexDirection: 'row', gap: 12, width: '100%', paddingHorizontal: 10, marginTop: 20, marginBottom: 24 },
+  openBankBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.primary, padding: 12, borderRadius: 12, justifyContent: 'center' },
+  openBankBtnText: { color: '#000', fontWeight: 'bold', fontSize: 13 },
 
   autoVerifyStatus: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16, backgroundColor: COLORS.surfaceLight, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20 },
   autoVerifyText: { color: COLORS.textDim, fontSize: 14, fontWeight: '500' },
