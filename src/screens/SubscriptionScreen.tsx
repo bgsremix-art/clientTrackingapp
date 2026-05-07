@@ -263,30 +263,48 @@ export default function SubscriptionScreen() {
                         <Text style={styles.saveImageBtnText}>{t('saveToGallery') || 'Save Image'}</Text>
                       </TouchableOpacity>
 
-                      {deeplink && (
-                        <TouchableOpacity 
-                          style={styles.openBankBtn} 
-                          onPress={async () => {
-                            try {
-                              const supported = await Linking.canOpenURL(deeplink);
-                              if (supported) {
-                                await Linking.openURL(deeplink);
-                              } else {
-                                Alert.alert("Error", "No compatible banking app found to open this link.");
-                              }
-                            } catch (e) {
-                              console.log("DeepLink Error:", e);
-                              // Fallback: try opening anyway as some apps don't register schemes correctly
+                      <TouchableOpacity 
+                        style={[styles.openBankBtn, !deeplink && { opacity: 0.7 }]} 
+                        onPress={async () => {
+                          if (!deeplink) {
+                            // Try generating again if it failed
+                            const link = await generateDeeplink(qrData.qrString);
+                            if (link) {
+                              setDeeplink(link);
+                              Linking.openURL(link);
+                            } else {
+                              Alert.alert("Error", "Could not generate payment link. Please try saving the QR and scanning it instead.");
+                            }
+                            return;
+                          }
+
+                          try {
+                            const supported = await Linking.canOpenURL(deeplink);
+                            if (supported) {
+                              await Linking.openURL(deeplink);
+                            } else {
+                              // Force open anyway as fallback
                               Linking.openURL(deeplink).catch(() => {
-                                Alert.alert("Error", "Could not open the banking app.");
+                                Alert.alert("Error", "No compatible banking app found to open this link.");
                               });
                             }
-                          }}
-                        >
+                          } catch (e) {
+                            console.log("DeepLink Error:", e);
+                            Linking.openURL(deeplink).catch(() => {
+                              Alert.alert("Error", "Could not open the banking app.");
+                            });
+                          }
+                        }}
+                      >
+                        {!deeplink && !paymentSuccess ? (
+                          <ActivityIndicator size="small" color="#000" />
+                        ) : (
                           <Ionicons name="apps-outline" size={20} color="#000" />
-                          <Text style={styles.openBankBtnText}>{t('payInBankApp') || 'Pay in Bank App'}</Text>
-                        </TouchableOpacity>
-                      )}
+                        )}
+                        <Text style={styles.openBankBtnText}>
+                          {!deeplink && !paymentSuccess ? "Generating Link..." : (t('payInBankApp') || 'Pay in Bank App')}
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   )}
 

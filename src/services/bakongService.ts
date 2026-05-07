@@ -96,7 +96,8 @@ export const generateDeeplink = async (qrString: string) => {
     });
     const data = await response.json();
     console.log("Deeplink Response:", data);
-    return data?.data?.deeplink || null;
+    // Support both field names as they vary by API version/relay
+    return data?.data?.deeplink || data?.data?.shortLink || null;
   } catch (error) {
     console.error("Generate Deeplink Error:", error);
     return null;
