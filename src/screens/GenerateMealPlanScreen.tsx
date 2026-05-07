@@ -68,9 +68,9 @@ export default function GenerateMealPlanScreen({ navigation, route }: any) {
    }
 
    const selectIngredient = (item: any) => {
-      if (activeCategory === 'Protein') setMeal(prev => ({ ...prev, p: item }));
-      else if (activeCategory === 'Carbs') setMeal(prev => ({ ...prev, c: item }));
-      else setMeal(prev => ({ ...prev, v: item }));
+      if (activeCategory === 'Protein') setMeal((prev: any) => ({ ...prev, p: item }));
+      else if (activeCategory === 'Carbs') setMeal((prev: any) => ({ ...prev, c: item }));
+      else setMeal((prev: any) => ({ ...prev, v: item }));
       setSwapModalVisible(false);
    }
 

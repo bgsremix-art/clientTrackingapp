@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, Image, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system/legacy';
 import { COLORS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useClients } from '../context/ClientContext';
@@ -21,6 +23,7 @@ export default function ClientDetailScreen({ route, navigation }: any) {
    const [newWeight, setNewWeight] = useState('');
    const [recordPhotoUris, setRecordPhotoUris] = useState<string[]>([]);
    const [isSaving, setIsSaving] = useState(false);
+   const [activeImage, setActiveImage] = useState<string | null>(null);
 
    // Config States
    const [localModifier, setLocalModifier] = useState(client?.customCalorieModifier?.toString() || '');
@@ -49,7 +52,7 @@ export default function ClientDetailScreen({ route, navigation }: any) {
 
    const handleSaveConfig = () => {
       const modifier = parseInt(localModifier);
-      editClient({ ...client, customCalorieModifier: isNaN(modifier) ? null : modifier });
+      editClient({ ...client, customCalorieModifier: isNaN(modifier) ? undefined : modifier });
       setConfigModalVisible(false);
    };
 
@@ -116,6 +119,31 @@ export default function ClientDetailScreen({ route, navigation }: any) {
       }
    };
 
+   const handleSaveToGallery = async (uri: string) => {
+      try {
+         const { status } = await MediaLibrary.requestPermissionsAsync();
+         if (status !== 'granted') {
+            Alert.alert('Permission needed', 'Please allow access to your photos to save images.');
+            return;
+         }
+
+         let localUri = uri;
+         if (uri.startsWith('http')) {
+            const filename = uri.split('/').pop();
+            const fileUri = `${FileSystem.documentDirectory}${filename}`;
+            const downloadResult = await FileSystem.downloadAsync(uri, fileUri);
+            localUri = downloadResult.uri;
+         }
+
+         const asset = await MediaLibrary.createAssetAsync(localUri);
+         await MediaLibrary.createAlbumAsync('ClientTracking', asset, false);
+         Alert.alert(t('success'), t('saveToGallery'));
+      } catch (error) {
+         console.error(error);
+         Alert.alert('Error', 'Failed to save photo.');
+      }
+   };
+
    const handleDelete = () => {
       Alert.alert(
          t('deleteClient'),
@@ -150,9 +178,9 @@ export default function ClientDetailScreen({ route, navigation }: any) {
           </View>
 
          <View style={styles.profileHeader}>
-            <View style={styles.avatarCircle}>
+            <TouchableOpacity style={styles.avatarCircle} onPress={() => client.imageUri && setActiveImage(client.imageUri)}>
                {client.imageUri ? <Image source={{ uri: client.imageUri }} style={{ width: 76, height: 76, borderRadius: 38 }} /> : <Ionicons name="person" size={40} color={COLORS.textDim} />}
-            </View>
+            </TouchableOpacity>
             <View style={styles.profileInfo}>
                <Text style={styles.clientName}>{client.name}</Text>
                <Text style={styles.clientSub}>{t('goal')}: {client.goal === 'Lose Weight' ? t('loseWeight') : client.goal === 'Maintain Weight' ? t('maintainWeight') : client.goal === 'Gain Muscle' ? t('gainMuscle') : t('gainWeight')}</Text>
@@ -232,7 +260,7 @@ export default function ClientDetailScreen({ route, navigation }: any) {
                      <TouchableOpacity onPress={pickRecordImage} style={{ width: 80, height: 80, borderRadius: 8, backgroundColor: COLORS.surfaceLight, alignItems: 'center', justifyContent: 'center' }}>
                         <Ionicons name="camera" size={24} color={COLORS.textDim} />
                      </TouchableOpacity>
-                  </ScrollView>
+                   </ScrollView>
 
                   <TextInput style={styles.input} placeholder={t('currentWeight')} placeholderTextColor={COLORS.textDim} keyboardType="numeric" value={newWeight} onChangeText={setNewWeight} autoFocus />
                   <View style={styles.modalActions}>
@@ -297,7 +325,7 @@ export default function ClientDetailScreen({ route, navigation }: any) {
                      onPress={() => {
                         setLocalModifier('');
                         setLocalKG('');
-                        editClient({ ...client, customCalorieModifier: null });
+                        editClient({ ...client, customCalorieModifier: undefined });
                         setConfigModalVisible(false);
                      }}
                   >
@@ -305,6 +333,23 @@ export default function ClientDetailScreen({ route, navigation }: any) {
                   </TouchableOpacity>
                </View>
             </KeyboardAvoidingView>
+         </Modal>
+
+         <Modal visible={!!activeImage} transparent animationType="fade">
+            <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.95)', justifyContent: 'center', alignItems: 'center' }}>
+               <TouchableOpacity style={{ position: 'absolute', top: 60, right: 24, zIndex: 10 }} onPress={() => setActiveImage(null)}>
+                  <Ionicons name="close" size={32} color="#fff" />
+               </TouchableOpacity>
+               {activeImage && <Image source={{ uri: activeImage }} style={{ width: '100%', height: '80%' }} resizeMode="contain" />}
+               
+               <TouchableOpacity 
+                  style={{ position: 'absolute', bottom: 60, backgroundColor: COLORS.primary, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 30, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                  onPress={() => activeImage && handleSaveToGallery(activeImage)}
+               >
+                  <Ionicons name="download-outline" size={20} color="#000" />
+                  <Text style={{ color: '#000', fontWeight: 'bold' }}>{t('saveToGallery')}</Text>
+               </TouchableOpacity>
+            </View>
          </Modal>
 
       </ScrollView>

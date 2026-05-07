@@ -271,5 +271,6 @@ const styles = StyleSheet.create({
   historyHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   historyDate: { color: COLORS.text, fontSize: 16, fontWeight: 'bold' },
   statusText: { fontSize: 12, fontWeight: 'bold' },
-  historyNote: { color: COLORS.textDim, fontSize: 14, fontStyle: 'italic' }
+  historyNote: { color: COLORS.textDim, fontSize: 14, fontStyle: 'italic' },
+  emptyText: { color: COLORS.textDim, fontSize: 14, textAlign: 'center', marginTop: 16 }
 });

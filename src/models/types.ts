@@ -50,4 +50,6 @@ export interface AppSettings {
   gainMuscleCals: number;
   gainWeightCals: number;
   language: 'en' | 'km';
+  subscriptionExpiry?: string; // ISO string
+  trialStartedAt?: string; // ISO string
 }

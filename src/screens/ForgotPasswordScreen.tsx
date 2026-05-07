@@ -1,33 +1,29 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { createUserWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
+import { sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { COLORS } from '../constants/theme';
 import { useClients } from '../context/ClientContext';
+import { Ionicons } from '@expo/vector-icons';
 
-export default function SignUpScreen({ navigation }: any) {
+export default function ForgotPasswordScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { t } = useClients();
 
-  const handleSignUp = async () => {
-    if (!email || !password || !confirmPassword) {
+  const handleReset = async () => {
+    if (!email) {
       Alert.alert('Error', t('pleaseFillAll'));
-      return;
-    }
-    if (password !== confirmPassword) {
-      Alert.alert('Error', t('passwordMismatch') || 'Passwords do not match.');
       return;
     }
     setLoading(true);
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      await sendEmailVerification(userCredential.user);
-      Alert.alert(t('verifyEmailTitle'), t('verificationEmailSent'));
+      await sendPasswordResetEmail(auth, email);
+      Alert.alert(t('resetPassword'), t('resetEmailSent'), [
+        { text: 'OK', onPress: () => navigation.goBack() }
+      ]);
     } catch (error: any) {
-      Alert.alert('Sign Up Failed', error.message);
+      Alert.alert('Error', error.message);
     } finally {
       setLoading(false);
     }
@@ -35,7 +31,11 @@ export default function SignUpScreen({ navigation }: any) {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Create Account</Text>
+      <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+        <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+      </TouchableOpacity>
+      
+      <Text style={styles.title}>{t('resetPassword')}</Text>
       
       <View style={styles.inputContainer}>
         <TextInput 
@@ -47,30 +47,14 @@ export default function SignUpScreen({ navigation }: any) {
           keyboardType="email-address"
           autoCapitalize="none"
         />
-        <TextInput 
-          style={styles.input} 
-          placeholder="Password" 
-          placeholderTextColor={COLORS.textDim}
-          value={password} 
-          onChangeText={setPassword} 
-          secureTextEntry 
-        />
-        <TextInput 
-          style={styles.input} 
-          placeholder="Confirm Password" 
-          placeholderTextColor={COLORS.textDim}
-          value={confirmPassword} 
-          onChangeText={setConfirmPassword} 
-          secureTextEntry 
-        />
       </View>
 
-      <TouchableOpacity style={styles.button} onPress={handleSignUp} disabled={loading}>
-        {loading ? <ActivityIndicator color="#000" /> : <Text style={styles.buttonText}>Sign Up</Text>}
+      <TouchableOpacity style={styles.button} onPress={handleReset} disabled={loading}>
+        {loading ? <ActivityIndicator color="#000" /> : <Text style={styles.buttonText}>{t('sendResetLink')}</Text>}
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.goBack()} style={styles.linkButton}>
-        <Text style={styles.linkText}>Already have an account? Log In</Text>
+        <Text style={styles.linkText}>{t('backToLogin')}</Text>
       </TouchableOpacity>
     </View>
   );
@@ -78,6 +62,7 @@ export default function SignUpScreen({ navigation }: any) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background, padding: 24, justifyContent: 'center' },
+  backBtn: { position: 'absolute', top: 60, left: 24 },
   title: { color: COLORS.primary, fontSize: 32, fontWeight: 'bold', marginBottom: 40, textAlign: 'center' },
   inputContainer: { marginBottom: 24 },
   input: { backgroundColor: COLORS.surface, color: COLORS.text, padding: 16, borderRadius: 12, marginBottom: 16, borderWidth: 1, borderColor: COLORS.border },

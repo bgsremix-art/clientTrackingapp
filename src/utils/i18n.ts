@@ -4,14 +4,14 @@ export const translations = {
     tabClients: 'Clients',
     tabIngredients: 'Ingredients',
     tabSettings: 'Settings',
-    
+
     // Dashboard
     dashboardTitle: 'Clients',
     searchClients: 'Search clients...',
     noClients: 'No clients found.',
     lastSync: 'Last Sync',
     justNow: 'Just now',
-    
+
     // Add Client
     addClientTitle: 'Add Client Info',
     clientName: 'Client Name',
@@ -32,7 +32,7 @@ export const translations = {
     saveEdits: 'Save Edits',
     namePlaceholder: 'Client Name',
     autoCalculatePlaceholder: 'Leave empty for auto-calculate',
-    
+
     // Client Detail
     clientDetailsTitle: 'Client Details',
     goal: 'Goal',
@@ -57,7 +57,7 @@ export const translations = {
     carbsLabel: 'Carbs',
     addProgress: 'Add Progress',
     save: 'Save',
-    
+
     // Settings
     settingsTitle: 'Settings & Info',
     language: 'Language',
@@ -147,20 +147,59 @@ export const translations = {
     descriptionNotes: 'Description/Notes (optional)',
     addToLibrary: '+ Add to Library',
     saveChanges: 'Save Changes',
+
+    // Subscription
+    subscription: 'Subscription',
+    subscriptionPlans: 'Subscription Plans',
+    daysRemaining: 'Days remaining',
+    expired: 'Expired',
+    active: 'Active',
+    selectPlan: 'Select a Plan',
+    oneMonth: '1 Month',
+    threeMonths: '3 Months',
+    sixMonths: '6 Months',
+    oneYear: '1 Year',
+    subscribeNow: 'Subscribe Now',
+    remainingDays: 'Remaining days: ',
+    saveToGallery: 'Save to Gallery',
+    forgotPassword: 'Forgot Password?',
+    resetPassword: 'Reset Password',
+    resetEmailSent: 'A password reset email has been sent to your inbox.',
+    verificationEmailSent: 'A verification email has been sent. Please check your inbox before logging in.',
+    verifyEmailTitle: 'Verify Your Email',
+    emailUnverified: 'Your email is not verified. Please check your inbox.',
+    resendEmail: 'Resend verification email',
+    sendResetLink: 'Send Reset Link',
+    backToLogin: 'Back to Login',
+    pleaseFillAll: 'Please fill in all fields.',
+    passwordMismatch: 'Passwords do not match.',
+    paymentTitle: 'Payment',
+    scanToPay: 'Scan QR Code to Pay',
+    confirmPayment: 'Verify Payment',
+    paymentSuccess: 'Payment Successful!',
+    paymentPending: 'Waiting for payment...',
+    bakongPayment: 'Bakong KHQR',
+    amountToPay: 'Amount to Pay',
+    iHaveVerified: 'I have verified my email',
+    freeTrial: 'Free Trial',
+    verifyEmailMessage: 'Please verify your email address to continue using the app. Check your inbox for the verification link.',
+    trialExpiredTitle: 'Trial Expired',
+    trialExpiredMessage: 'Your 3-day free trial has ended. Please subscribe to continue using all professional features.',
+    logout: 'Log Out',
   },
   km: {
     // Tabs & Navigation
     tabClients: 'អតិថិជន',
     tabIngredients: 'គ្រឿងផ្សំ',
     tabSettings: 'ការកំណត់',
-    
+
     // Dashboard
     dashboardTitle: 'អតិថិជន',
     searchClients: 'ស្វែងរកអតិថិជន...',
     noClients: 'រកមិនឃើញអតិថិជនទេ។',
     lastSync: 'ធ្វើសមកាលកម្មចុងក្រោយ',
     justNow: 'អម្បាញ់មិញ',
-    
+
     // Add Client
     addClientTitle: 'បន្ថែមអតិថិជន',
     clientName: 'ឈ្មោះអតិថិជន',
@@ -181,7 +220,7 @@ export const translations = {
     saveEdits: 'រក្សាទុកការកែប្រែ',
     namePlaceholder: 'ឈ្មោះអតិថិជន',
     autoCalculatePlaceholder: 'ទុកឱ្យនៅទំនេរដើម្បីគណនាដោយស្វ័យប្រវត្តិ',
-    
+
     // Client Detail
     clientDetailsTitle: 'ព័ត៌មានលម្អិត',
     goal: 'គោលដៅ',
@@ -206,7 +245,7 @@ export const translations = {
     carbsLabel: 'កាបូអ៊ីដ្រាត',
     addProgress: 'បន្ថែមការវិវឌ្ឍ',
     save: 'រក្សាទុក',
-    
+
     // Settings
     settingsTitle: 'ការកំណត់',
     language: 'ភាសា / Language',
@@ -296,5 +335,44 @@ export const translations = {
     descriptionNotes: 'ការពិពណ៌នា / ចំណាំ (មិនចាំបាច់)',
     addToLibrary: '+ បន្ថែមទៅបណ្ណាល័យ',
     saveChanges: 'រក្សាទុកការផ្លាស់ប្តូរ',
-  }
+
+    // Subscription
+    subscription: 'ការជាវ',
+    subscriptionPlans: 'គម្រោងការជាវ',
+    daysRemaining: 'ថ្ងៃដែលនៅសល់',
+    expired: 'ហួសកំណត់',
+    active: 'សកម្ម',
+    selectPlan: 'ជ្រើសរើសគម្រោង',
+    oneMonth: '១ ខែ',
+    threeMonths: '៣ ខែ',
+    sixMonths: '៦ ខែ',
+    oneYear: '១ ឆ្នាំ',
+    subscribeNow: 'ជាវឥឡូវនេះ',
+    remainingDays: 'ថ្ងៃនៅសល់: ',
+    saveToGallery: 'រក្សាទុកក្នុងវិចិត្រសាល',
+    forgotPassword: 'ភ្លេចពាក្យសម្ងាត់?',
+    resetPassword: 'កំណត់ពាក្យសម្ងាត់ឡើងវិញ',
+    resetEmailSent: 'អ៊ីមែលសម្រាប់កំណត់ពាក្យសម្ងាត់ឡើងវិញត្រូវបានផ្ញើទៅកាន់ប្រអប់សំបុត្ររបស់អ្នក។',
+    verificationEmailSent: 'អ៊ីមែលផ្ទៀងផ្ទាត់ត្រូវបានផ្ញើ។ សូមពិនិត្យមើលប្រអប់សំបុត្ររបស់អ្នកមុនពេលចូលប្រើ។',
+    verifyEmailTitle: 'ផ្ទៀងផ្ទាត់អ៊ីមែលរបស់អ្នក',
+    emailUnverified: 'អ៊ីមែលរបស់អ្នកមិនទាន់បានផ្ទៀងផ្ទាត់ទេ។ សូមពិនិត្យមើលប្រអប់សំបុត្ររបស់អ្នក។',
+    resendEmail: 'ផ្ញើអ៊ីមែលផ្ទៀងផ្ទាត់ឡើងវិញ',
+    sendResetLink: 'ផ្ញើតំណភ្ជាប់កំណត់ឡើងវិញ',
+    backToLogin: 'ត្រឡប់ទៅការចូលប្រើវិញ',
+    pleaseFillAll: 'សូមបំពេញព័ត៌មានគ្រប់ប្រអប់។',
+    passwordMismatch: 'ពាក្យសម្ងាត់មិនត្រូវគ្នាទេ។',
+    paymentTitle: 'ការទូទាត់',
+    scanToPay: 'ស្កេនកូដ QR ដើម្បីទូទាត់',
+    confirmPayment: 'ផ្ទៀងផ្ទាត់ការទូទាត់',
+    paymentSuccess: 'ការទូទាត់បានជោគជ័យ!',
+    paymentPending: 'កំពុងរង់ចាំការទូទាត់...',
+    bakongPayment: 'Bakong KHQR',
+    amountToPay: 'ចំនួនទឹកប្រាក់ត្រូវបង់',
+    iHaveVerified: 'ខ្ញុំបានផ្ទៀងផ្ទាត់អ៊ីមែលរួចហើយ',
+    freeTrial: 'ការសាកល្បងឥតគិតថ្លៃ',
+    verifyEmailMessage: 'សូមផ្ទៀងផ្ទាត់អាសយដ្ឋានអ៊ីមែលរបស់អ្នកដើម្បីបន្តប្រើប្រាស់កម្មវិធី។ សូមពិនិត្យមើលប្រអប់សំបុត្ររបស់អ្នកសម្រាប់តំណផ្ទៀងផ្ទាត់持។',
+    trialExpiredTitle: 'ការសាកល្បងបានបញ្ចប់',
+    trialExpiredMessage: 'ការសាកល្បងឥតគិតថ្លៃរយៈពេល ៣ ថ្ងៃរបស់អ្នកបានបញ្ចប់ហើយ។ សូមជាវដើម្បីបន្តប្រើប្រាស់មុខងារវិជ្ជាជីវៈទាំងអស់។',
+    logout: 'ចាកចេញ',
+  },
 };

@@ -1,22 +1,42 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from 'react-native';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { signInWithEmailAndPassword, sendEmailVerification } from 'firebase/auth';
 import { auth } from '../config/firebase';
 import { COLORS } from '../constants/theme';
+import { useClients } from '../context/ClientContext';
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
+  const { t } = useClients();
 
   const handleLogin = async () => {
     if (!email || !password) {
-      Alert.alert('Error', 'Please fill in all fields.');
+      Alert.alert('Error', t('pleaseFillAll'));
       return;
     }
     setLoading(true);
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      const userCredential = await signInWithEmailAndPassword(auth, email, password);
+      const user = userCredential.user;
+
+      if (!user.emailVerified) {
+        Alert.alert(
+          t('verifyEmailTitle'),
+          t('emailUnverified'),
+          [
+            { text: t('close'), style: 'cancel' },
+            { 
+              text: t('resendEmail'), 
+              onPress: async () => {
+                await sendEmailVerification(user);
+                Alert.alert(t('verifyEmailTitle'), t('verificationEmailSent'));
+              }
+            }
+          ]
+        );
+      }
     } catch (error: any) {
       Alert.alert('Login Failed', error.message);
     } finally {
@@ -46,6 +66,10 @@ export default function LoginScreen({ navigation }: any) {
           onChangeText={setPassword} 
           secureTextEntry 
         />
+        
+        <TouchableOpacity onPress={() => navigation.navigate('ForgotPassword')} style={styles.forgotBtn}>
+          <Text style={styles.forgotText}>{t('forgotPassword')}</Text>
+        </TouchableOpacity>
       </View>
 
       <TouchableOpacity style={styles.button} onPress={handleLogin} disabled={loading}>
@@ -67,5 +91,7 @@ const styles = StyleSheet.create({
   button: { backgroundColor: COLORS.primary, padding: 16, borderRadius: 12, alignItems: 'center' },
   buttonText: { color: '#000', fontWeight: 'bold', fontSize: 16 },
   linkButton: { marginTop: 24, alignItems: 'center' },
-  linkText: { color: COLORS.textDim, fontSize: 14 }
+  linkText: { color: COLORS.textDim, fontSize: 14 },
+  forgotBtn: { alignSelf: 'flex-end', marginTop: -8, marginBottom: 16 },
+  forgotText: { color: COLORS.primary, fontSize: 14, fontWeight: 'bold' }
 });

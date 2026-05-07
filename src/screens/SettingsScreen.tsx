@@ -4,6 +4,7 @@ import { COLORS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useClients } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
+import { sendEmailVerification } from 'firebase/auth';
 
 export default function SettingsScreen() {
   const { settings, updateSettings, t, restoreDefaultIngredients } = useClients();
@@ -22,7 +23,7 @@ export default function SettingsScreen() {
     else if (type === 'muscle') setGainMuscleKG(kg);
     else setGainWeightKG(kg);
 
-    if (kg === '') return; // Don't reset calories if user clears the KG box
+    if (kg === '') return; 
 
     const val = parseFloat(kg) || 0;
     const cals = Math.round((val * 7700) / 30);
@@ -36,7 +37,7 @@ export default function SettingsScreen() {
     else if (type === 'muscle') setGainMuscle(cals);
     else setGainWeight(cals);
 
-    if (cals === '' || cals === '-') return; // Don't reset KG if calorie box is cleared
+    if (cals === '' || cals === '-') return; 
 
     const val = parseInt(cals) || 0;
     const kg = ((val * 30) / 7700).toFixed(1).replace('.0', '').replace('-', '');
@@ -77,6 +78,17 @@ export default function SettingsScreen() {
      );
   };
 
+  const handleResendVerification = async () => {
+    if (user) {
+      try {
+        await sendEmailVerification(user);
+        Alert.alert(t('verifyEmailTitle'), t('verificationEmailSent'));
+      } catch (error: any) {
+        Alert.alert('Error', error.message);
+      }
+    }
+  };
+
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={{flex: 1}}>
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -87,7 +99,43 @@ export default function SettingsScreen() {
           <Ionicons name="person" size={24} color={COLORS.primary} />
           <Text style={styles.cardTitle}>{t('account')}</Text>
         </View>
-        <Text style={{color: COLORS.text, fontSize: 16, marginBottom: 16}}>{t('loggedInAs')}{user?.email}</Text>
+        <View style={{ marginBottom: 12 }}>
+          <Text style={{color: COLORS.text, fontSize: 16, marginBottom: 4}} numberOfLines={1} ellipsizeMode="middle">{t('loggedInAs')}{user?.email}</Text>
+          
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
+            <Ionicons 
+              name={user?.emailVerified ? "checkmark-circle" : "warning"} 
+              size={16} 
+              color={user?.emailVerified ? "#4CAF50" : "#FFC107"} 
+              style={{ marginRight: 4 }}
+            />
+            <Text style={{ color: user?.emailVerified ? "#4CAF50" : "#FFC107", fontSize: 14, fontWeight: 'bold' }}>
+              {user?.emailVerified ? "Verified" : "Unverified"}
+            </Text>
+            {!user?.emailVerified && (
+              <TouchableOpacity onPress={handleResendVerification} style={{ marginLeft: 12 }}>
+                <Text style={{ color: COLORS.primary, fontSize: 14, fontWeight: 'bold', textDecorationLine: 'underline' }}>
+                  {t('resendEmail')}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
+
+          {(() => {
+            const getRemainingDays = () => {
+              if (!settings.subscriptionExpiry) return 0;
+              const expiry = new Date(settings.subscriptionExpiry);
+              const diff = expiry.getTime() - new Date().getTime();
+              return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
+            };
+            const days = getRemainingDays();
+            return (
+              <Text style={{ color: days > 0 ? COLORS.primary : COLORS.textDim, fontSize: 14, fontWeight: 'bold' }}>
+                {t('remainingDays')}{days} {t('daysRemaining').toLowerCase()}
+              </Text>
+            );
+          })()}
+        </View>
         
         <TouchableOpacity style={[styles.logoutBtn, {borderColor: COLORS.primary, marginBottom: 12}]} onPress={handleRestoreFood}>
           <Text style={[styles.logoutBtnText, {color: COLORS.primary}]}>{t('restoreFoodLibrary')}</Text>

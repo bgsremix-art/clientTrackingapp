@@ -3,6 +3,8 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, Modal, Tex
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
+import * as MediaLibrary from 'expo-media-library';
+import * as FileSystem from 'expo-file-system/legacy';
 import { COLORS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useClients } from '../context/ClientContext';
@@ -19,7 +21,7 @@ export default function ProgressRecordScreen({ route, navigation }: any) {
     const record = records.find(r => r.id === recordId);
     const client = record ? clients.find((c: any) => c.id === record.clientId) : null;
 
-    const [fullScreenImage, setFullScreenImage] = useState<string | null>(null);
+    const [activeImage, setActiveImage] = useState<string | null>(null);
 
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [editDate, setEditDate] = useState('');
@@ -59,6 +61,31 @@ export default function ProgressRecordScreen({ route, navigation }: any) {
             setIsUploading(false);
         }
     };
+
+    const handleSaveToGallery = async (uri: string) => {
+        try {
+           const { status } = await MediaLibrary.requestPermissionsAsync();
+           if (status !== 'granted') {
+              Alert.alert('Permission needed', 'Please allow access to your photos to save images.');
+              return;
+           }
+  
+           let localUri = uri;
+           if (uri.startsWith('http')) {
+              const filename = uri.split('/').pop();
+              const fileUri = `${FileSystem.documentDirectory}${filename}`;
+              const downloadResult = await FileSystem.downloadAsync(uri, fileUri);
+              localUri = downloadResult.uri;
+           }
+  
+           const asset = await MediaLibrary.createAssetAsync(localUri);
+           await MediaLibrary.createAlbumAsync('ClientTracking', asset, false);
+           Alert.alert(t('success'), t('saveToGallery'));
+        } catch (error) {
+           console.error(error);
+           Alert.alert('Error', 'Failed to save photo.');
+        }
+     };
 
     const handleDeletePhoto = (index: number) => {
         Alert.alert('Delete Photo', 'Are you sure you want to delete this photo?', [
@@ -147,7 +174,7 @@ export default function ProgressRecordScreen({ route, navigation }: any) {
 
                 <View style={styles.photoGrid}>
                     {record.photoUris && record.photoUris.map((uri, idx) => (
-                        <TouchableOpacity key={idx} onPress={() => setFullScreenImage(uri)} style={styles.photoWrapper}>
+                        <TouchableOpacity key={idx} onPress={() => setActiveImage(uri)} style={styles.photoWrapper}>
                             <Image source={{ uri }} style={styles.gridImage} />
                             <TouchableOpacity
                                 style={{ position: 'absolute', top: 6, right: 6, backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 12, padding: 4 }}
@@ -163,12 +190,20 @@ export default function ProgressRecordScreen({ route, navigation }: any) {
                 </View>
             </ScrollView>
 
-            <Modal visible={!!fullScreenImage} transparent animationType="fade">
+            <Modal visible={!!activeImage} transparent animationType="fade">
                 <View style={styles.fullScreenBg}>
-                    <TouchableOpacity style={styles.closeBtn} onPress={() => setFullScreenImage(null)}>
+                    <TouchableOpacity style={styles.closeBtn} onPress={() => setActiveImage(null)}>
                         <Ionicons name="close" size={32} color="#fff" />
                     </TouchableOpacity>
-                    {fullScreenImage && <Image source={{ uri: fullScreenImage }} style={styles.fullScreenImage} resizeMode="contain" />}
+                    {activeImage && <Image source={{ uri: activeImage }} style={styles.fullScreenImage} resizeMode="contain" />}
+                    
+                    <TouchableOpacity 
+                        style={{ position: 'absolute', bottom: 60, backgroundColor: COLORS.primary, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 30, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+                        onPress={() => activeImage && handleSaveToGallery(activeImage)}
+                    >
+                        <Ionicons name="download-outline" size={20} color="#000" />
+                        <Text style={{ color: '#000', fontWeight: 'bold' }}>{t('saveToGallery')}</Text>
+                    </TouchableOpacity>
                 </View>
             </Modal>
 

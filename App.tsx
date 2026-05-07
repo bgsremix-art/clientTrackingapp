@@ -18,9 +18,12 @@ import AddIngredientScreen from './src/screens/AddIngredientScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
+import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
+import SubscriptionScreen from './src/screens/SubscriptionScreen';
 
 import { ClientProvider, useClients } from './src/context/ClientContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
+import { AccessGuard } from './src/components/AccessGuard';
 import { COLORS } from './src/constants/theme';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -76,6 +79,7 @@ function MainApp() {
                 let iconName: keyof typeof Ionicons.glyphMap = 'people';
                 if (route.name === 'Clients L') iconName = focused ? 'people' : 'people-outline';
                 else if (route.name === 'Ingredients') iconName = focused ? 'restaurant' : 'restaurant-outline';
+                else if (route.name === 'Subscription') iconName = focused ? 'card' : 'card-outline';
                 else if (route.name === 'Settings') iconName = focused ? 'settings' : 'settings-outline';
                 return <Ionicons name={iconName} size={size} color={color} />;
             },
@@ -87,6 +91,7 @@ function MainApp() {
       >
         <Tab.Screen name="Clients L" component={ClientStackScreen} options={{ title: t('tabClients') }} />
         <Tab.Screen name="Ingredients" component={IngredientStackScreen} options={{ title: t('tabIngredients') }} />
+        <Tab.Screen name="Subscription" component={SubscriptionScreen} options={{ title: t('subscription') }} />
         <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t('tabSettings') }}/>
       </Tab.Navigator>
   );
@@ -105,16 +110,19 @@ function RootNavigator() {
 
   return (
     <NavigationContainer theme={{...DarkTheme, colors: {...DarkTheme.colors, background: COLORS.background}}}>
-      {user ? (
-        <ClientProvider>
-          <MainApp />
-        </ClientProvider>
-      ) : (
-        <AuthStack.Navigator screenOptions={{ headerShown: false }}>
-          <AuthStack.Screen name="Login" component={LoginScreen} />
-          <AuthStack.Screen name="SignUp" component={SignUpScreen} />
-        </AuthStack.Navigator>
-      )}
+      <ClientProvider>
+        {user ? (
+          <AccessGuard>
+            <MainApp />
+          </AccessGuard>
+        ) : (
+          <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+            <AuthStack.Screen name="Login" component={LoginScreen} />
+            <AuthStack.Screen name="SignUp" component={SignUpScreen} />
+            <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+          </AuthStack.Navigator>
+        )}
+      </ClientProvider>
     </NavigationContainer>
   );
 }

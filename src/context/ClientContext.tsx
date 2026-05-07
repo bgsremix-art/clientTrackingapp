@@ -117,9 +117,26 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
 
     const unsubSettings = onSnapshot(doc(db, 'users', uid, 'settings', 'app_settings'), (docSnap) => {
       if (docSnap.exists()) {
-        setSettings(docSnap.data() as AppSettings);
+        const data = docSnap.data() as AppSettings;
+        setSettings(data);
+        
+        // Initialize trial if not present
+        if (!data.trialStartedAt) {
+          setDoc(doc(db, 'users', uid, 'settings', 'app_settings'), {
+            ...data,
+            trialStartedAt: new Date().toISOString()
+          }, { merge: true });
+        }
       } else {
-        setSettings({ loseWeightCals: -500, gainMuscleCals: 300, gainWeightCals: 500, language: 'en' });
+        const initialSettings: AppSettings = { 
+          loseWeightCals: -500, 
+          gainMuscleCals: 300, 
+          gainWeightCals: 500, 
+          language: 'en',
+          trialStartedAt: new Date().toISOString()
+        };
+        setSettings(initialSettings);
+        setDoc(doc(db, 'users', uid, 'settings', 'app_settings'), initialSettings);
       }
     });
 
