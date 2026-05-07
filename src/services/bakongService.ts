@@ -76,30 +76,3 @@ export const checkPaymentStatus = async (md5Hash: string) => {
     return null;
   }
 };
-
-export const generateDeeplink = async (qrString: string) => {
-  try {
-    const token = await getBakongToken();
-    const response = await fetch(`https://api-bakong.nbc.gov.kh/v1/generate_deeplink_by_qr`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${token}`
-      },
-      body: JSON.stringify({
-        qr: qrString,
-        sourceInfo: {
-          appIconUrl: "https://bakong.nbc.gov.kh/images/logo.png",
-          appName: "Client Tracking App"
-        }
-      })
-    });
-    const data = await response.json();
-    console.log("Deeplink Response:", data);
-    // Support both field names as they vary by API version/relay
-    return data?.data?.deeplink || data?.data?.shortLink || null;
-  } catch (error) {
-    console.error("Generate Deeplink Error:", error);
-    return null;
-  }
-};

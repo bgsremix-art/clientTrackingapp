@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator, Image, Linking } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Alert, Modal, ActivityIndicator, Image } from 'react-native';
 import { COLORS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useClients } from '../context/ClientContext';
-import { generatePaymentQR, checkPaymentStatus, generateDeeplink } from '../services/bakongService';
+import { generatePaymentQR, checkPaymentStatus } from '../services/bakongService';
 import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
@@ -15,7 +15,6 @@ export default function SubscriptionScreen() {
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [qrData, setQrData] = useState<any>(null);
-  const [deeplink, setDeeplink] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState(300); // 5 minutes
   const viewShotRef = React.useRef<any>(null);
 
@@ -77,10 +76,6 @@ export default function SubscriptionScreen() {
     setQrData(data);
     setShowPayment(true);
     setPaymentSuccess(false);
-    
-    // Generate deeplink
-    const link = await generateDeeplink(data.qrString);
-    setDeeplink(link);
   };
 
   const handleSaveQRImage = async () => {
@@ -97,7 +92,7 @@ export default function SubscriptionScreen() {
       });
 
       await MediaLibrary.saveToLibraryAsync(uri);
-      Alert.alert(t('success'), "QR Image saved to your gallery!");
+      Alert.alert(t('success'), t('qrSaved') || "QR Image saved to your photos!");
     } catch (error) {
       console.error("Save Error:", error);
       Alert.alert("Error", "Failed to save image.");
@@ -108,12 +103,8 @@ export default function SubscriptionScreen() {
     if (selectedPlan) {
       const data = generatePaymentQR(selectedPlan.amount, 'USD');
       setQrData(data);
-      setDeeplink(null);
       setTimeLeft(300);
       setPaymentSuccess(false);
-      
-      const link = await generateDeeplink(data.qrString);
-      setDeeplink(link);
     }
   };
 
@@ -214,7 +205,7 @@ export default function SubscriptionScreen() {
         <View style={styles.infoBox}>
           <Ionicons name="information-circle-outline" size={20} color={COLORS.textDim} />
           <Text style={styles.infoText}>
-            Subscription unlocks all professional features and cloud sync. Payments are processed securely via Bakong KHQR.
+            {t('subscriptionInfo')}
           </Text>
         </View>
       </ScrollView>
@@ -236,7 +227,7 @@ export default function SubscriptionScreen() {
                   <View style={styles.timerContainer}>
                     <Ionicons name="time-outline" size={16} color={timeLeft < 60 ? "#E31E24" : COLORS.textDim} />
                     <Text style={[styles.timerText, timeLeft < 60 && { color: "#E31E24" }]}>
-                      Session expires in: {formatTime(timeLeft)}
+                      {t('sessionExpires')}{formatTime(timeLeft)}
                     </Text>
                   </View>
 
@@ -257,61 +248,16 @@ export default function SubscriptionScreen() {
                   </ViewShot>
 
                   {timeLeft > 0 && (
-                    <View style={styles.actionButtonsRow}>
-                      <TouchableOpacity style={styles.saveImageBtn} onPress={handleSaveQRImage}>
-                        <Ionicons name="download" size={20} color={COLORS.primary} />
-                        <Text style={styles.saveImageBtnText}>{t('saveToGallery') || 'Save Image'}</Text>
-                      </TouchableOpacity>
-
-                      <TouchableOpacity 
-                        style={[styles.openBankBtn, !deeplink && { opacity: 0.7 }]} 
-                        onPress={async () => {
-                          if (!deeplink) {
-                            // Try generating again if it failed
-                            const link = await generateDeeplink(qrData.qrString);
-                            if (link) {
-                              setDeeplink(link);
-                              Linking.openURL(link);
-                            } else {
-                              Alert.alert("Error", "Could not generate payment link. Please try saving the QR and scanning it instead.");
-                            }
-                            return;
-                          }
-
-                          try {
-                            const supported = await Linking.canOpenURL(deeplink);
-                            if (supported) {
-                              await Linking.openURL(deeplink);
-                            } else {
-                              // Force open anyway as fallback
-                              Linking.openURL(deeplink).catch(() => {
-                                Alert.alert("Error", "No compatible banking app found to open this link.");
-                              });
-                            }
-                          } catch (e) {
-                            console.log("DeepLink Error:", e);
-                            Linking.openURL(deeplink).catch(() => {
-                              Alert.alert("Error", "Could not open the banking app.");
-                            });
-                          }
-                        }}
-                      >
-                        {!deeplink && !paymentSuccess ? (
-                          <ActivityIndicator size="small" color="#000" />
-                        ) : (
-                          <Ionicons name="apps-outline" size={20} color="#000" />
-                        )}
-                        <Text style={styles.openBankBtnText}>
-                          {!deeplink && !paymentSuccess ? "Generating Link..." : (t('payInBankApp') || 'Pay in Bank App')}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
+                    <TouchableOpacity style={styles.saveImageBtn} onPress={handleSaveQRImage}>
+                      <Ionicons name="download" size={20} color={COLORS.primary} />
+                      <Text style={styles.saveImageBtnText}>{t('saveToGallery') || 'Save Image'}</Text>
+                    </TouchableOpacity>
                   )}
 
                   <View style={styles.autoVerifyStatus}>
                     <ActivityIndicator size="small" color={COLORS.primary} />
                     <Text style={styles.autoVerifyText}>
-                      {timeLeft > 0 ? "Waiting for payment..." : "Session Expired"}
+                      {timeLeft > 0 ? t('paymentPending') : t('sessionExpired')}
                     </Text>
                   </View>
 
@@ -324,26 +270,12 @@ export default function SubscriptionScreen() {
                   <Ionicons name="checkmark-circle" size={100} color={COLORS.primary} />
                 </View>
                 <Text style={styles.successTitle}>{t('paymentSuccess')}</Text>
-                <Text style={styles.successMsg}>
-                  Your subscription has been updated successfully. You now have full access to all professional features.
-                </Text>
-
-                <View style={styles.successDetails}>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Plan</Text>
-                    <Text style={styles.detailValue}>{selectedPlan?.title}</Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Amount</Text>
-                    <Text style={styles.detailValue}>{selectedPlan?.price}</Text>
-                  </View>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.continueBtn}
+                <Text style={styles.successMsg}>{t('subscriptionUpdated')}</Text>
+                <TouchableOpacity 
+                  style={styles.doneBtn} 
                   onPress={() => setShowPayment(false)}
                 >
-                  <Text style={styles.continueBtnText}>Start Using Features</Text>
+                  <Text style={styles.doneBtnText}>{t('done')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -424,12 +356,8 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  saveImageBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.surfaceLight, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border },
-  saveImageBtnText: { color: COLORS.primary, fontWeight: 'bold', fontSize: 13 },
-  
-  actionButtonsRow: { flexDirection: 'row', gap: 12, width: '100%', paddingHorizontal: 10, marginTop: 20, marginBottom: 24 },
-  openBankBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: COLORS.primary, padding: 12, borderRadius: 12, justifyContent: 'center' },
-  openBankBtnText: { color: '#000', fontWeight: 'bold', fontSize: 13 },
+  saveImageBtn: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 24, backgroundColor: COLORS.surfaceLight, padding: 10, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, marginTop: 20 },
+  saveImageBtnText: { color: COLORS.primary, fontWeight: 'bold' },
 
   autoVerifyStatus: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 16, backgroundColor: COLORS.surfaceLight, paddingVertical: 8, paddingHorizontal: 16, borderRadius: 20 },
   autoVerifyText: { color: COLORS.textDim, fontSize: 14, fontWeight: '500' },
@@ -441,10 +369,6 @@ const styles = StyleSheet.create({
   successIconContainer: { marginBottom: 24 },
   successTitle: { color: COLORS.text, fontSize: 28, fontWeight: 'bold', textAlign: 'center', marginBottom: 12 },
   successMsg: { color: COLORS.textDim, fontSize: 16, textAlign: 'center', marginBottom: 32, paddingHorizontal: 20 },
-  successDetails: { width: '100%', backgroundColor: COLORS.surfaceLight, borderRadius: 16, padding: 20, marginBottom: 40 },
-  detailRow: { flexDirection: 'row', justifyContent: 'space-between', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: COLORS.border },
-  detailLabel: { color: COLORS.textDim, fontSize: 14 },
-  detailValue: { color: COLORS.text, fontSize: 16, fontWeight: 'bold' },
-  continueBtn: { backgroundColor: COLORS.primary, width: '100%', padding: 18, borderRadius: 16, alignItems: 'center' },
-  continueBtnText: { color: '#000', fontSize: 18, fontWeight: 'bold' },
+  doneBtn: { backgroundColor: COLORS.primary, width: '100%', padding: 18, borderRadius: 16, alignItems: 'center' },
+  doneBtnText: { color: '#000', fontSize: 18, fontWeight: 'bold' },
 });
