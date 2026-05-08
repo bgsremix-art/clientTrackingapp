@@ -16,6 +16,8 @@ const formatDate = (value?: string) => {
 
 const getDisplayEmail = (profile: UserProfile) => profile.email || 'Email not saved yet';
 
+type StatFilter = 'all' | 'today' | 'week' | 'paid' | 'trial' | 'expired';
+
 const getUserAccessLabel = (profile: UserProfile, trialDays: number) => {
   if (profile.blocked) return { label: 'Blocked', color: COLORS.error };
   const status = getAccessStatus({
@@ -52,6 +54,7 @@ export default function AdminScreen() {
   const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [statFilter, setStatFilter] = useState<StatFilter>('all');
 
   useEffect(() => {
     setBakongToken(bakongConfig.bakongToken || '');
@@ -63,9 +66,27 @@ export default function AdminScreen() {
 
   const filteredUsers = useMemo(() => {
     const term = query.trim().toLowerCase();
-    if (!term) return adminUsers;
-    return adminUsers.filter((profile) => profile.email.toLowerCase().includes(term));
-  }, [adminUsers, query]);
+    const now = Date.now();
+    const day = 24 * 60 * 60 * 1000;
+    const trialDaysValue = adminAppConfig.trialDays || TRIAL_DAYS;
+
+    return adminUsers.filter((profile) => {
+      if (term && !profile.email.toLowerCase().includes(term)) {
+        return false;
+      }
+
+      const activeAt = new Date(profile.lastActiveAt).getTime();
+      const access = getUserAccessLabel(profile, trialDaysValue).label;
+
+      if (statFilter === 'today') return Number.isFinite(activeAt) && now - activeAt <= day;
+      if (statFilter === 'week') return Number.isFinite(activeAt) && now - activeAt <= day * 7;
+      if (statFilter === 'paid') return access.startsWith('Paid');
+      if (statFilter === 'trial') return access.startsWith('Trial');
+      if (statFilter === 'expired') return access === 'Expired';
+
+      return true;
+    });
+  }, [adminUsers, adminAppConfig.trialDays, query, statFilter]);
 
   const stats = useMemo(() => {
     const now = Date.now();
@@ -182,12 +203,12 @@ export default function AdminScreen() {
       )}
 
       <View style={styles.statGrid}>
-        <StatCard label="Users" value={stats.total} />
-        <StatCard label="Today" value={stats.activeToday} />
-        <StatCard label="This week" value={stats.activeWeek} />
-        <StatCard label="Paid" value={stats.paid} />
-        <StatCard label="Trial" value={stats.trial} />
-        <StatCard label="Expired" value={stats.expired} />
+        <StatCard label="Users" value={stats.total} active={statFilter === 'all'} onPress={() => setStatFilter('all')} />
+        <StatCard label="Today" value={stats.activeToday} active={statFilter === 'today'} onPress={() => setStatFilter('today')} />
+        <StatCard label="This week" value={stats.activeWeek} active={statFilter === 'week'} onPress={() => setStatFilter('week')} />
+        <StatCard label="Paid" value={stats.paid} active={statFilter === 'paid'} onPress={() => setStatFilter('paid')} />
+        <StatCard label="Trial" value={stats.trial} active={statFilter === 'trial'} onPress={() => setStatFilter('trial')} />
+        <StatCard label="Expired" value={stats.expired} active={statFilter === 'expired'} onPress={() => setStatFilter('expired')} />
       </View>
 
       <View style={styles.card}>
@@ -227,7 +248,15 @@ export default function AdminScreen() {
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Ionicons name="people-outline" size={22} color={COLORS.primary} />
-          <Text style={styles.cardTitle}>Users</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.cardTitle}>Users</Text>
+            <Text style={styles.filterText}>Showing {filteredUsers.length} {statFilter === 'all' ? 'users' : statFilter}</Text>
+          </View>
+          {statFilter !== 'all' && (
+            <TouchableOpacity style={styles.clearFilterBtn} onPress={() => setStatFilter('all')}>
+              <Text style={styles.clearFilterText}>Clear</Text>
+            </TouchableOpacity>
+          )}
         </View>
         <TextInput
           style={styles.searchInput}
@@ -304,12 +333,12 @@ export default function AdminScreen() {
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({ label, value, active, onPress }: { label: string; value: number; active: boolean; onPress: () => void }) {
   return (
-    <View style={styles.statCard}>
+    <TouchableOpacity style={[styles.statCard, active && styles.statCardActive]} onPress={onPress} activeOpacity={0.85}>
       <Text style={styles.statValue}>{value}</Text>
       <Text style={styles.statLabel}>{label}</Text>
-    </View>
+    </TouchableOpacity>
   );
 }
 
@@ -334,11 +363,15 @@ const styles = StyleSheet.create({
   savingText: { color: COLORS.textDim, fontSize: 13 },
   statGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 20 },
   statCard: { width: '31%', backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 12 },
+  statCardActive: { borderColor: COLORS.primary, backgroundColor: COLORS.surfaceLight },
   statValue: { color: COLORS.primary, fontSize: 24, fontWeight: 'bold' },
   statLabel: { color: COLORS.textDim, fontSize: 12, marginTop: 4 },
   card: { backgroundColor: COLORS.surface, borderRadius: 8, padding: 16, borderWidth: 1, borderColor: COLORS.border, marginBottom: 18 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   cardTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
+  filterText: { color: COLORS.textDim, fontSize: 12, marginTop: 2 },
+  clearFilterBtn: { backgroundColor: COLORS.surfaceLight, borderRadius: 6, borderWidth: 1, borderColor: COLORS.border, paddingVertical: 6, paddingHorizontal: 10 },
+  clearFilterText: { color: COLORS.text, fontSize: 12, fontWeight: 'bold' },
   input: { backgroundColor: COLORS.background, color: COLORS.text, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 12 },
   tokenInput: { minHeight: 110, textAlignVertical: 'top', fontSize: 12 },
   helperText: { color: COLORS.textDim, fontSize: 12, marginTop: 8, marginBottom: 12 },
