@@ -9,12 +9,6 @@
       }
     },
     "production": {
-      "ios": {
-        "bundleIdentifier": "com.anonymous.clientTracking"
-      },
-      "android": {
-        "package": "com.anonymous.clientTracking"
-      }
     }
   }
 }
