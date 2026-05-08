@@ -55,11 +55,21 @@ jobs:
           WORKSPACE=$(ls -d *.xcworkspace | head -n 1)
           echo "Using workspace: $WORKSPACE"
           
-          xcodebuild -workspace "$WORKSPACE" -scheme clientTracking -configuration Release -destination 'generic/platform=iOS' archive -archivePath ./build.xcarchive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" EXPANDED_CODE_SIGN_IDENTITY="" COMPILER_INDEX_STORE_ENABLE=NO ONLY_ACTIVE_ARCH=NO
+          # Use 'build' instead of 'archive' for better compatibility with unsigned builds
+          # Using -derivedDataPath to ensure we know where the output goes
+          xcodebuild -workspace "$WORKSPACE" -scheme clientTracking -configuration Release -destination 'generic/platform=iOS' build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" EXPANDED_CODE_SIGN_IDENTITY="" COMPILER_INDEX_STORE_ENABLE=NO ONLY_ACTIVE_ARCH=NO -derivedDataPath ./build | tee build.log || (tail -n 100 build.log && exit 1)
           
           # Package the compiled .app into an .ipa file
+          APP_PATH=$(find build -name "*.app" | grep "Release-iphoneos" | head -n 1)
+          
+          echo "Found app at: $APP_PATH"
+          if [ -z "$APP_PATH" ]; then
+            echo "::error::Could not find .app file in build directory"
+            exit 1
+          fi
+          
           mkdir -p Payload
-          mv build.xcarchive/Products/Applications/*.app Payload/
+          cp -r "$APP_PATH" Payload/
           zip -r app.ipa Payload
 
       - name: Upload IPA File
