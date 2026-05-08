@@ -21,6 +21,7 @@ import SignUpScreen from './src/screens/SignUpScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 import SubscriptionScreen from './src/screens/SubscriptionScreen';
 import AdminScreen from './src/screens/AdminScreen';
+import AdminUsersScreen from './src/screens/AdminUsersScreen';
 
 import { ClientProvider, useClients } from './src/context/ClientContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -30,6 +31,7 @@ import { COLORS } from './src/constants/theme';
 const Stack = createNativeStackNavigator<RootStackParamList>();
 const IngredientStack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
+const AdminStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function ClientStackScreen() {
@@ -71,6 +73,20 @@ function IngredientStackScreen() {
   )
 }
 
+function AdminStackScreen() {
+  return (
+    <AdminStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: COLORS.background },
+      }}
+    >
+      <AdminStack.Screen name="AdminHome" component={AdminScreen} />
+      <AdminStack.Screen name="AdminUsers" component={AdminUsersScreen} />
+    </AdminStack.Navigator>
+  );
+}
+
 function MainApp() {
   const { t, isAdmin } = useClients();
   return (
@@ -94,7 +110,7 @@ function MainApp() {
         <Tab.Screen name="Clients L" component={ClientStackScreen} options={{ title: t('tabClients') }} />
         <Tab.Screen name="Ingredients" component={IngredientStackScreen} options={{ title: t('tabIngredients') }} />
         <Tab.Screen name="Subscription" component={SubscriptionScreen} options={{ title: t('subscription') }} />
-        {isAdmin && <Tab.Screen name="Admin" component={AdminScreen} options={{ title: 'Admin' }} />}
+        {isAdmin && <Tab.Screen name="Admin" component={AdminStackScreen} options={{ title: 'Admin' }} />}
         <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t('tabSettings') }}/>
       </Tab.Navigator>
   );
