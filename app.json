@@ -40,7 +40,8 @@
           "savePhotosPermission": "Allow $(PRODUCT_NAME) to save photos.",
           "isStandAlone": true
         }
-      ]
+      ],
+      "expo-font"
     ],
     "extra": {
       "eas": {
