@@ -5,7 +5,7 @@ on:
 
 jobs:
   build-ios:
-    runs-on: macos-latest # This gives you a FREE Apple Mac to build on!
+    runs-on: macos-15 # Stable macOS image for iOS builds
 
     steps:
       - name: Checkout Code
@@ -14,14 +14,22 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 20
+          cache: npm
 
       - name: Install Dependencies
         run: |
-          npm install
-          npx expo install --fix
+          npm ci
         env:
           CI: true
+
+      - name: Select Latest Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Install CocoaPods
+        run: |
+          sudo gem install cocoapods
+          pod --version
 
       - name: Generate iOS Folder (Expo Prebuild)
         run: |
@@ -29,19 +37,37 @@ jobs:
         env:
           CI: true
 
-      - name: Fix Podfile Deployment Target
+      - name: Configure Podfile
         run: |
-          # Use ruby to safely inject the deployment target fix into the existing post_install block
-          ruby -i -e '
-          content = ARGF.read
-          target_fix = "      installer.pods_project.targets.each do |target|\n        target.build_configurations.each do |config|\n          config.build_settings[\"IPHONEOS_DEPLOYMENT_TARGET\"] = \"15.1\"\n        end\n      end"
-          if content.include?("post_install do |installer|")
-            content.gsub!(/post_install do \|installer\|/, "post_install do |installer|\n#{target_fix}")
+          ruby <<'RUBY'
+          path = "ios/Podfile"
+          content = File.read(path)
+
+          if content.match?(/^platform :ios,/)
+            content.sub!(/^platform :ios,.*$/, "platform :ios, '15.1'")
           else
-            content += "\npost_install do |installer|\n#{target_fix}\nend\n"
+            content = "platform :ios, '15.1'\n" + content
           end
-          print content
-          ' ios/Podfile
+
+          target_fix = <<~TARGET_FIX.rstrip
+                installer.pods_project.targets.each do |target|
+                  target.build_configurations.each do |config|
+                    config.build_settings["IPHONEOS_DEPLOYMENT_TARGET"] = "15.1"
+                  end
+                end
+          TARGET_FIX
+
+          unless content.include?('IPHONEOS_DEPLOYMENT_TARGET')
+            if content.include?('post_install do |installer|')
+              content.sub!(/post_install do \|installer\|/, "post_install do |installer|\n#{target_fix}")
+            else
+              content += "\npost_install do |installer|\n#{target_fix}\nend\n"
+            end
+          end
+
+          File.write(path, content)
+          RUBY
+          cat ios/Podfile
 
       - name: Verify iOS Folder Generation
         run: |
@@ -53,8 +79,7 @@ jobs:
       - name: Install Pods
         run: |
           cd ios
-          pod repo update
-          pod install
+          pod install --repo-update
 
       - name: List Xcode Schemes (Debug)
         run: |
@@ -63,9 +88,6 @@ jobs:
           WORKSPACE=$(ls -d *.xcworkspace | head -n 1)
           echo "Found workspace: $WORKSPACE"
           xcodebuild -list -workspace "$WORKSPACE"
-
-      - name: Select Latest Xcode
-        run: sudo xcode-select -s /Applications/Xcode.app
 
       - name: Build iOS App (Unsigned)
         run: |
