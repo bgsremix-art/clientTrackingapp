@@ -1,6 +1,7 @@
 import { AppSettings } from '../models/types';
 
 export const TRIAL_DAYS = 3;
+export const FORCE_EXPIRED_ACCESS_FOR_TEST = true;
 
 export type AccessStatus =
   | { active: true; type: 'trial' | 'subscription'; days: number }
@@ -13,6 +14,10 @@ const getTime = (value?: string) => {
 };
 
 export const getAccessStatus = (settings: AppSettings, now = Date.now()): AccessStatus => {
+  if (FORCE_EXPIRED_ACCESS_FOR_TEST) {
+    return { active: false, type: 'none', days: 0 };
+  }
+
   const subscriptionExpiry = getTime(settings.subscriptionExpiry);
 
   if (subscriptionExpiry > now) {
