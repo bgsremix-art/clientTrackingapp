@@ -11,6 +11,7 @@ type ClientContextType = {
   ingredients: FoodLibraryItem[];
   attendance: AttendanceRecord[];
   settings: AppSettings;
+  settingsLoaded: boolean;
   updateSettings: (s: AppSettings) => void;
   t: (key: string) => string;
   addClient: (client: Client) => void;
@@ -96,12 +97,15 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   const [ingredients, setIngredients] = useState<FoodLibraryItem[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [settings, setSettings] = useState<AppSettings>({ loseWeightCals: -500, gainMuscleCals: 300, gainWeightCals: 500, language: 'en' });
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
 
   useEffect(() => {
     if (!user) {
       setClients([]);
       setRecords([]);
       setIngredients([]);
+      setAttendance([]);
+      setSettingsLoaded(false);
       return;
     }
 
@@ -118,15 +122,21 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubSettings = onSnapshot(doc(db, 'users', uid, 'settings', 'app_settings'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data() as AppSettings;
-        setSettings(data);
         
         // Initialize trial if not present
         if (!data.trialStartedAt) {
-          setDoc(doc(db, 'users', uid, 'settings', 'app_settings'), {
+          const initializedSettings = {
             ...data,
             trialStartedAt: new Date().toISOString()
+          };
+          setSettings(initializedSettings);
+          setDoc(doc(db, 'users', uid, 'settings', 'app_settings'), {
+            trialStartedAt: initializedSettings.trialStartedAt
           }, { merge: true });
+        } else {
+          setSettings(data);
         }
+        setSettingsLoaded(true);
       } else {
         const initialSettings: AppSettings = { 
           loseWeightCals: -500, 
@@ -136,6 +146,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
           trialStartedAt: new Date().toISOString()
         };
         setSettings(initialSettings);
+        setSettingsLoaded(true);
         setDoc(doc(db, 'users', uid, 'settings', 'app_settings'), initialSettings);
       }
     });
@@ -224,7 +235,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <ClientContext.Provider value={{ clients, records, ingredients, attendance, settings, t, addClient, editClient, deleteClient, addRecord, editRecord, deleteRecord, addIngredient, editIngredient, deleteIngredient, restoreDefaultIngredients, updateSettings, toggleAttendance, deleteAttendance }}>
+    <ClientContext.Provider value={{ clients, records, ingredients, attendance, settings, settingsLoaded, t, addClient, editClient, deleteClient, addRecord, editRecord, deleteRecord, addIngredient, editIngredient, deleteIngredient, restoreDefaultIngredients, updateSettings, toggleAttendance, deleteAttendance }}>
       {children}
     </ClientContext.Provider>
   );

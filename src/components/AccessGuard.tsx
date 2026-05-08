@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { auth } from '../config/firebase';
 import { reload } from 'firebase/auth';
 import SubscriptionScreen from '../screens/SubscriptionScreen';
+import { getAccessStatus } from '../utils/accessStatus';
 
 interface AccessGuardProps {
   children: React.ReactNode;
@@ -14,7 +15,7 @@ interface AccessGuardProps {
 
 export const AccessGuard: React.FC<AccessGuardProps> = ({ children }) => {
   const { user, logout } = useAuth();
-  const { settings, t } = useClients();
+  const { settings, settingsLoaded, t } = useClients();
   const [checking, setChecking] = useState(false);
 
   const checkVerification = async () => {
@@ -59,7 +60,7 @@ export const AccessGuard: React.FC<AccessGuardProps> = ({ children }) => {
   }
 
   // 2. Subscription & Trial Check
-  if (!settings.trialStartedAt) {
+  if (!settingsLoaded) {
     return (
       <View style={styles.blockContainer}>
         <ActivityIndicator color={COLORS.primary} size="large" />
@@ -67,18 +68,10 @@ export const AccessGuard: React.FC<AccessGuardProps> = ({ children }) => {
     );
   }
 
-  const trialStart = new Date(settings.trialStartedAt).getTime();
-  const threeDaysInMs = 3 * 24 * 60 * 60 * 1000;
-  const trialExpiry = trialStart + threeDaysInMs;
-  const now = Date.now();
-
-  const subscriptionExpiry = settings.subscriptionExpiry ? new Date(settings.subscriptionExpiry).getTime() : 0;
-
-  const isTrialActive = now <= trialExpiry;
-  const isSubscriptionActive = now <= subscriptionExpiry;
+  const accessStatus = getAccessStatus(settings);
 
   // If both trial and subscription are expired, show subscription screen
-  if (!isTrialActive && !isSubscriptionActive) {
+  if (!accessStatus.active) {
     return (
       <View style={{ flex: 1 }}>
         <SubscriptionScreen />

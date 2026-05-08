@@ -8,6 +8,7 @@ import ViewShot, { captureRef } from 'react-native-view-shot';
 import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
 import KHQRCard from '../components/KHQRCard';
+import { getAccessStatus } from '../utils/accessStatus';
 
 export default function SubscriptionScreen() {
   const { settings, updateSettings, t } = useClients();
@@ -124,35 +125,11 @@ export default function SubscriptionScreen() {
   };
 
   const getRemainingDaysInfo = () => {
-    const now = new Date().getTime();
-
-    // 1. Check paid subscription first
-    if (settings.subscriptionExpiry) {
-      const expiry = new Date(settings.subscriptionExpiry).getTime();
-      if (expiry > now) {
-        const diff = expiry - now;
-        const days = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-        return { days, type: 'subscription' as const };
-      }
-    }
-
-    // 2. Check free trial
-    if (settings.trialStartedAt) {
-      // TESTING: Force expired
-      const trialStart = new Date(settings.trialStartedAt).getTime() - (4 * 24 * 60 * 60 * 1000);
-      const trialExpiry = trialStart + (3 * 24 * 60 * 60 * 1000);
-      if (trialExpiry > now) {
-        const diff = trialExpiry - now;
-        const days = Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
-        return { days, type: 'trial' as const };
-      }
-    }
-
-    return { days: 0, type: 'none' as const };
+    return getAccessStatus(settings);
   };
 
   const statusInfo = getRemainingDaysInfo();
-  const isActive = statusInfo.type !== 'none';
+  const isActive = statusInfo.active;
 
   return (
     <View style={{ flex: 1, backgroundColor: COLORS.background }}>
