@@ -14,7 +14,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
 
       - name: Install Dependencies
         run: npm install
@@ -22,8 +22,13 @@ jobs:
       - name: Generate iOS Folder (Expo Prebuild)
         run: npx expo prebuild --platform ios --no-interactive
 
-      - name: Debug: List iOS Folder
-        run: ls -R ios
+      - name: Verify iOS Folder Generation
+        run: |
+          if [ ! -d "ios" ]; then
+            echo "::error::The 'ios' folder was not generated. Expo prebuild failed."
+            exit 1
+          fi
+          ls -R ios
 
       - name: List Xcode Schemes (Debug)
         run: |
