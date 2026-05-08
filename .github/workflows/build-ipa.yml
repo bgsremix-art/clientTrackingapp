@@ -20,7 +20,9 @@ jobs:
         run: npm install
 
       - name: Generate iOS Folder (Expo Prebuild)
-        run: npx expo prebuild --platform ios --non-interactive
+        run: |
+          rm -rf ios
+          npx expo prebuild --platform ios --no-install --non-interactive
         env:
           CI: true
 
