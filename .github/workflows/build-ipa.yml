@@ -31,13 +31,17 @@ jobs:
 
       - name: Fix Podfile Deployment Target
         run: |
-          echo "post_install do |installer|
-            installer.pods_project.targets.each do |target|
-              target.build_configurations.each do |config|
-                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
-              end
-            end
-          end" >> ios/Podfile
+          # Use ruby to safely inject the deployment target fix into the existing post_install block
+          ruby -i -e '
+          content = ARGF.read
+          target_fix = "      installer.pods_project.targets.each do |target|\n        target.build_configurations.each do |config|\n          config.build_settings[\"IPHONEOS_DEPLOYMENT_TARGET\"] = \"15.1\"\n        end\n      end"
+          if content.include?("post_install do |installer|")
+            content.gsub!(/post_install do \|installer\|/, "post_install do |installer|\n#{target_fix}")
+          else
+            content += "\npost_install do |installer|\n#{target_fix}\nend\n"
+          end
+          print content
+          ' ios/Podfile
 
       - name: Verify iOS Folder Generation
         run: |
