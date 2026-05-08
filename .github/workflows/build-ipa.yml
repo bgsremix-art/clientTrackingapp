@@ -20,7 +20,10 @@ jobs:
         run: npm install
 
       - name: Generate iOS Folder (Expo Prebuild)
-        run: npx expo prebuild --platform ios
+        run: npx expo prebuild --platform ios --no-interactive
+
+      - name: Debug: List iOS Folder
+        run: ls -R ios
 
       - name: List Xcode Schemes (Debug)
         run: |
@@ -36,9 +39,11 @@ jobs:
         run: |
           cd ios
           # Compile the app using Xcode on the GitHub Mac runner without Apple Developer account
-          # We use a wildcard for the workspace to avoid naming mismatches
-          # Added -quiet to reduce logs but show errors
-          xcodebuild -workspace *.xcworkspace -scheme clientTracking -configuration Release -destination 'generic/platform=iOS' archive -archivePath ./build.xcarchive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" EXPANDED_CODE_SIGN_IDENTITY="" -quiet
+          # Using shell expansion to find the workspace accurately
+          WORKSPACE=$(ls -d *.xcworkspace | head -n 1)
+          echo "Using workspace: $WORKSPACE"
+          
+          xcodebuild -workspace "$WORKSPACE" -scheme clientTracking -configuration Release -destination 'generic/platform=iOS' archive -archivePath ./build.xcarchive CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" EXPANDED_CODE_SIGN_IDENTITY=""
           
           # Package the compiled .app into an .ipa file
           mkdir -p Payload
