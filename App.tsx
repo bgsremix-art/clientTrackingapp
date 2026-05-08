@@ -20,6 +20,7 @@ import LoginScreen from './src/screens/LoginScreen';
 import SignUpScreen from './src/screens/SignUpScreen';
 import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
 import SubscriptionScreen from './src/screens/SubscriptionScreen';
+import AdminScreen from './src/screens/AdminScreen';
 
 import { ClientProvider, useClients } from './src/context/ClientContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
@@ -71,7 +72,7 @@ function IngredientStackScreen() {
 }
 
 function MainApp() {
-  const { t } = useClients();
+  const { t, isAdmin } = useClients();
   return (
       <Tab.Navigator
         screenOptions={({ route }) => ({
@@ -80,6 +81,7 @@ function MainApp() {
                 if (route.name === 'Clients L') iconName = focused ? 'people' : 'people-outline';
                 else if (route.name === 'Ingredients') iconName = focused ? 'restaurant' : 'restaurant-outline';
                 else if (route.name === 'Subscription') iconName = focused ? 'card' : 'card-outline';
+                else if (route.name === 'Admin') iconName = focused ? 'shield-checkmark' : 'shield-checkmark-outline';
                 else if (route.name === 'Settings') iconName = focused ? 'settings' : 'settings-outline';
                 return <Ionicons name={iconName} size={size} color={color} />;
             },
@@ -92,6 +94,7 @@ function MainApp() {
         <Tab.Screen name="Clients L" component={ClientStackScreen} options={{ title: t('tabClients') }} />
         <Tab.Screen name="Ingredients" component={IngredientStackScreen} options={{ title: t('tabIngredients') }} />
         <Tab.Screen name="Subscription" component={SubscriptionScreen} options={{ title: t('subscription') }} />
+        {isAdmin && <Tab.Screen name="Admin" component={AdminScreen} options={{ title: 'Admin' }} />}
         <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t('tabSettings') }}/>
       </Tab.Navigator>
   );

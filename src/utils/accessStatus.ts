@@ -13,7 +13,7 @@ const getTime = (value?: string) => {
   return Number.isFinite(time) ? time : 0;
 };
 
-export const getAccessStatus = (settings: AppSettings, now = Date.now()): AccessStatus => {
+export const getAccessStatus = (settings: AppSettings, now = Date.now(), trialDays = TRIAL_DAYS): AccessStatus => {
   if (FORCE_EXPIRED_ACCESS_FOR_TEST) {
     return { active: false, type: 'none', days: 0 };
   }
@@ -29,7 +29,7 @@ export const getAccessStatus = (settings: AppSettings, now = Date.now()): Access
   }
 
   const trialStart = getTime(settings.trialStartedAt);
-  const trialExpiry = trialStart + TRIAL_DAYS * 24 * 60 * 60 * 1000;
+  const trialExpiry = trialStart + trialDays * 24 * 60 * 60 * 1000;
 
   if (trialStart > 0 && trialExpiry > now) {
     return {

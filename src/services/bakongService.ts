@@ -6,17 +6,13 @@ import { db } from '../config/firebase';
 const BAKONG_TOKEN_FALLBACK = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkYXRhIjp7ImlkIjoiYmU3ODdjMjFiMzE0NDUyNyJ9LCJpYXQiOjE3Nzc5MDI3MjYsImV4cCI6MTc4NTY3ODcyNn0.Q9JAfNOtBrcktn41QNb_Ve4mhf4eaYsdtCZRR6nBGVg";
 const BAKONG_ID = "engreaksmey_kimreach@bkrt";
 
-let cachedToken: string | null = null;
-
 const getBakongToken = async () => {
-  if (cachedToken) return cachedToken;
   try {
     const snap = await getDoc(doc(db, 'admin', 'config'));
     if (snap.exists()) {
       const data = snap.data();
       if (data.bakongToken) {
-        cachedToken = data.bakongToken;
-        return cachedToken;
+        return data.bakongToken;
       }
     }
   } catch (e) {

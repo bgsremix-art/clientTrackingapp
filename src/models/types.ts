@@ -53,3 +53,28 @@ export interface AppSettings {
   subscriptionExpiry?: string; // ISO string
   trialStartedAt?: string; // ISO string
 }
+
+export interface UserProfile {
+  uid: string;
+  email: string;
+  createdAt: string;
+  lastActiveAt: string;
+  platform: string;
+  appVersion: string;
+  role: 'admin' | 'user';
+  blocked?: boolean;
+  trialStartedAt?: string;
+  subscriptionExpiry?: string;
+}
+
+export interface AdminAppConfig {
+  trialDays: number;
+  maintenanceMessage?: string;
+  forceUpdateVersion?: string;
+}
+
+export interface BakongAdminConfig {
+  bakongToken?: string;
+  updatedAt?: string;
+  updatedBy?: string;
+}

@@ -1,9 +1,11 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { collection, doc, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
+import { Platform } from 'react-native';
 import { db } from '../config/firebase';
 import { useAuth } from './AuthContext';
-import { Client, ProgressRecord, FoodLibraryItem, AppSettings, AttendanceRecord } from '../models/types';
+import { Client, ProgressRecord, FoodLibraryItem, AppSettings, AttendanceRecord, UserProfile, AdminAppConfig, BakongAdminConfig } from '../models/types';
 import { translations } from '../utils/i18n';
+import { ADMIN_EMAILS } from '../constants/admin';
 
 type ClientContextType = {
   clients: Client[];
@@ -12,7 +14,18 @@ type ClientContextType = {
   attendance: AttendanceRecord[];
   settings: AppSettings;
   settingsLoaded: boolean;
+  userProfile: UserProfile | null;
+  isAdmin: boolean;
+  adminUsers: UserProfile[];
+  adminAppConfig: AdminAppConfig;
+  bakongConfig: BakongAdminConfig;
   updateSettings: (s: AppSettings) => void;
+  refreshAdminUsers: () => Promise<void>;
+  updateUserProfile: (uid: string, updates: Partial<UserProfile>) => Promise<void>;
+  updateUserSubscription: (uid: string, subscriptionExpiry?: string, trialStartedAt?: string) => Promise<void>;
+  deleteUserData: (uid: string) => Promise<void>;
+  updateAdminAppConfig: (config: AdminAppConfig) => Promise<void>;
+  updateBakongToken: (token: string) => Promise<void>;
   t: (key: string) => string;
   addClient: (client: Client) => void;
   editClient: (client: Client) => void;
@@ -98,6 +111,13 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
   const [settings, setSettings] = useState<AppSettings>({ loseWeightCals: -500, gainMuscleCals: 300, gainWeightCals: 500, language: 'en' });
   const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [adminUsers, setAdminUsers] = useState<UserProfile[]>([]);
+  const [adminAppConfig, setAdminAppConfig] = useState<AdminAppConfig>({ trialDays: 3 });
+  const [bakongConfig, setBakongConfig] = useState<BakongAdminConfig>({});
+
+  const emailIsAdmin = user?.email ? ADMIN_EMAILS.includes(user.email.toLowerCase()) : false;
+  const isAdmin = emailIsAdmin || userProfile?.role === 'admin';
 
   useEffect(() => {
     if (!user) {
@@ -106,10 +126,50 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
       setIngredients([]);
       setAttendance([]);
       setSettingsLoaded(false);
+      setUserProfile(null);
+      setAdminUsers([]);
       return;
     }
 
     const uid = user.uid;
+    const profileRef = doc(db, 'users', uid);
+    const now = new Date().toISOString();
+    const baseProfile: UserProfile = {
+      uid,
+      email: user.email || '',
+      createdAt: now,
+      lastActiveAt: now,
+      platform: Platform.OS,
+      appVersion: '1.0.0',
+      role: emailIsAdmin ? 'admin' : 'user',
+      blocked: false,
+    };
+
+    getDoc(profileRef).then((profileSnap) => {
+      if (profileSnap.exists()) {
+        const existing = profileSnap.data() as UserProfile;
+        const updates: Partial<UserProfile> = {
+          email: user.email || existing.email || '',
+          lastActiveAt: now,
+          platform: Platform.OS,
+          appVersion: '1.0.0',
+        };
+        if (emailIsAdmin && existing.role !== 'admin') {
+          updates.role = 'admin';
+        }
+        setDoc(profileRef, updates, { merge: true });
+      } else {
+        setDoc(profileRef, baseProfile);
+      }
+    });
+
+    const unsubProfile = onSnapshot(profileRef, (snap) => {
+      if (snap.exists()) {
+        setUserProfile(snap.data() as UserProfile);
+      } else {
+        setUserProfile(baseProfile);
+      }
+    });
 
     const unsubClients = onSnapshot(collection(db, 'users', uid, 'clients'), (snap) => {
       setClients(snap.docs.map(d => d.data() as Client));
@@ -130,11 +190,19 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
             trialStartedAt: new Date().toISOString()
           };
           setSettings(initializedSettings);
+          setDoc(profileRef, {
+            trialStartedAt: initializedSettings.trialStartedAt,
+            subscriptionExpiry: initializedSettings.subscriptionExpiry || ''
+          }, { merge: true });
           setDoc(doc(db, 'users', uid, 'settings', 'app_settings'), {
             trialStartedAt: initializedSettings.trialStartedAt
           }, { merge: true });
         } else {
           setSettings(data);
+          setDoc(profileRef, {
+            trialStartedAt: data.trialStartedAt,
+            subscriptionExpiry: data.subscriptionExpiry || ''
+          }, { merge: true });
         }
         setSettingsLoaded(true);
       } else {
@@ -147,6 +215,10 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         };
         setSettings(initialSettings);
         setSettingsLoaded(true);
+        setDoc(profileRef, {
+          trialStartedAt: initialSettings.trialStartedAt,
+          subscriptionExpiry: initialSettings.subscriptionExpiry || ''
+        }, { merge: true });
         setDoc(doc(db, 'users', uid, 'settings', 'app_settings'), initialSettings);
       }
     });
@@ -167,6 +239,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
     });
 
     return () => {
+      unsubProfile();
       unsubClients();
       unsubRecords();
       unsubSettings();
@@ -210,6 +283,97 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   
   const updateSettings = (s: AppSettings) => { if (user) setDoc(doc(db, 'users', user.uid, 'settings', 'app_settings'), s); };
 
+  useEffect(() => {
+    if (!isAdmin) {
+      setAdminUsers([]);
+      return;
+    }
+
+    const unsubBakong = onSnapshot(doc(db, 'admin', 'config'), (snap) => {
+      setBakongConfig(snap.exists() ? (snap.data() as BakongAdminConfig) : {});
+    });
+
+    refreshAdminUsers();
+
+    return () => {
+      unsubBakong();
+    };
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!user) return;
+    const unsubAdminApp = onSnapshot(doc(db, 'admin_config', 'app'), (snap) => {
+      if (snap.exists()) {
+        const data = snap.data() as AdminAppConfig;
+        setAdminAppConfig({ ...data, trialDays: data.trialDays ?? 3 });
+      } else {
+        setAdminAppConfig({ trialDays: 3 });
+      }
+    });
+
+    return unsubAdminApp;
+  }, [user]);
+
+  const assertAdmin = () => {
+    if (!isAdmin || !user) {
+      throw new Error('Admin access required');
+    }
+  };
+
+  const refreshAdminUsers = async () => {
+    if (!isAdmin) return;
+    const snap = await getDocs(collection(db, 'users'));
+    const profiles = await Promise.all(snap.docs.map(async (userDoc) => {
+      return userDoc.data() as UserProfile;
+    }));
+    setAdminUsers(profiles.filter((profile): profile is UserProfile => !!profile).sort((a, b) => new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()));
+  };
+
+  const updateUserProfile = async (uid: string, updates: Partial<UserProfile>) => {
+    assertAdmin();
+    await setDoc(doc(db, 'users', uid), updates, { merge: true });
+    await refreshAdminUsers();
+  };
+
+  const updateUserSubscription = async (uid: string, subscriptionExpiry?: string, trialStartedAt?: string) => {
+    assertAdmin();
+    const update: Partial<AppSettings> = {};
+    if (subscriptionExpiry !== undefined) update.subscriptionExpiry = subscriptionExpiry;
+    if (trialStartedAt !== undefined) update.trialStartedAt = trialStartedAt;
+    await setDoc(doc(db, 'users', uid, 'settings', 'app_settings'), update, { merge: true });
+    await setDoc(doc(db, 'users', uid), update, { merge: true });
+    await refreshAdminUsers();
+  };
+
+  const deleteCollectionDocs = async (uid: string, collectionName: string) => {
+    const snap = await getDocs(collection(db, 'users', uid, collectionName));
+    await Promise.all(snap.docs.map((document) => deleteDoc(document.ref)));
+  };
+
+  const deleteUserData = async (uid: string) => {
+    assertAdmin();
+    await Promise.all([
+      deleteCollectionDocs(uid, 'clients'),
+      deleteCollectionDocs(uid, 'records'),
+      deleteCollectionDocs(uid, 'ingredients'),
+      deleteCollectionDocs(uid, 'attendance'),
+    ]);
+  };
+
+  const updateAdminAppConfig = async (config: AdminAppConfig) => {
+    assertAdmin();
+    await setDoc(doc(db, 'admin_config', 'app'), config, { merge: true });
+  };
+
+  const updateBakongToken = async (token: string) => {
+    assertAdmin();
+    await setDoc(doc(db, 'admin', 'config'), {
+      bakongToken: token.trim(),
+      updatedAt: new Date().toISOString(),
+      updatedBy: user?.uid,
+    }, { merge: true });
+  };
+
   const toggleAttendance = (clientId: string, date: string, notes?: string, forceStatus?: boolean) => {
     if (!user) return;
     const existing = attendance.find(a => a.clientId === clientId && a.date === date);
@@ -235,7 +399,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <ClientContext.Provider value={{ clients, records, ingredients, attendance, settings, settingsLoaded, t, addClient, editClient, deleteClient, addRecord, editRecord, deleteRecord, addIngredient, editIngredient, deleteIngredient, restoreDefaultIngredients, updateSettings, toggleAttendance, deleteAttendance }}>
+    <ClientContext.Provider value={{ clients, records, ingredients, attendance, settings, settingsLoaded, userProfile, isAdmin, adminUsers, adminAppConfig, bakongConfig, t, addClient, editClient, deleteClient, addRecord, editRecord, deleteRecord, addIngredient, editIngredient, deleteIngredient, restoreDefaultIngredients, updateSettings, refreshAdminUsers, updateUserProfile, updateUserSubscription, deleteUserData, updateAdminAppConfig, updateBakongToken, toggleAttendance, deleteAttendance }}>
       {children}
     </ClientContext.Provider>
   );

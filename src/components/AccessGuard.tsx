@@ -15,7 +15,7 @@ interface AccessGuardProps {
 
 export const AccessGuard: React.FC<AccessGuardProps> = ({ children }) => {
   const { user, logout } = useAuth();
-  const { settings, settingsLoaded, t } = useClients();
+  const { settings, settingsLoaded, userProfile, adminAppConfig, t } = useClients();
   const [checking, setChecking] = useState(false);
 
   const checkVerification = async () => {
@@ -59,6 +59,23 @@ export const AccessGuard: React.FC<AccessGuardProps> = ({ children }) => {
     );
   }
 
+  if (userProfile?.blocked) {
+    return (
+      <View style={styles.blockContainer}>
+        <View style={styles.iconContainer}>
+          <Ionicons name="ban-outline" size={80} color={COLORS.error} />
+        </View>
+        <Text style={styles.title}>Account blocked</Text>
+        <Text style={styles.message}>
+          Your account access has been disabled. Please contact support.
+        </Text>
+        <TouchableOpacity style={styles.logoutButton} onPress={logout}>
+          <Text style={styles.logoutText}>{t('logout')}</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   // 2. Subscription & Trial Check
   if (!settingsLoaded) {
     return (
@@ -68,7 +85,7 @@ export const AccessGuard: React.FC<AccessGuardProps> = ({ children }) => {
     );
   }
 
-  const accessStatus = getAccessStatus(settings);
+  const accessStatus = getAccessStatus(settings, Date.now(), adminAppConfig.trialDays);
 
   // If both trial and subscription are expired, show subscription screen
   if (!accessStatus.active) {
