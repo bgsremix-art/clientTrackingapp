@@ -58,6 +58,16 @@ const getAdminEmailsFromData = (data: any) => {
   return normalizeEmails(emails);
 };
 
+const getArrayLength = (value: any) => Array.isArray(value) ? value.length : 0;
+
+const estimateFirestoreDocBytes = (path: string, data: any) => {
+  try {
+    return unescape(encodeURIComponent(`${path}:${JSON.stringify(data || {})}`)).length;
+  } catch {
+    return path.length;
+  }
+};
+
 const defaultIngredients: FoodLibraryItem[] = [
   // Proteins
   { id: 'p1', category: 'Protein', name: 'សាច់ទ្រូងមាន់ (Chicken Breast)', proteinBase: 23, carbBase: 0, fatBase: 1.5, calsBase: 110, icon: '🍗' },
@@ -137,7 +147,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   const firebaseAdminEmails = normalizeEmails([...configAdminEmails, ...startAdminEmails]);
   const allAdminEmails = normalizeEmails([...fallbackAdminEmails, ...firebaseAdminEmails]);
   const emailIsAdmin = user?.email ? allAdminEmails.includes(user.email.toLowerCase()) : false;
-  const isAdmin = emailIsAdmin || userProfile?.role === 'admin';
+  const isAdmin = emailIsAdmin;
   const mergedAdminAppConfig = { ...adminAppConfig, adminEmails: firebaseAdminEmails };
 
   useEffect(() => {
@@ -179,6 +189,9 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         };
         if (emailIsAdmin && existing.role !== 'admin') {
           updates.role = 'admin';
+        }
+        if (!emailIsAdmin && existing.role === 'admin') {
+          updates.role = 'user';
         }
         setDoc(profileRef, updates, { merge: true });
       } else {
@@ -406,6 +419,26 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         getDocs(collection(db, 'users', uid, 'ingredients')),
         getDocs(collection(db, 'users', uid, 'attendance')),
       ]);
+      const storageUploadsSnap = await getDocs(collection(db, 'users', uid, 'storage_uploads'));
+      const storageBytes = storageUploadsSnap.docs.reduce((total, uploadDoc) => {
+        const data = uploadDoc.data();
+        return total + (Number(data.bytes) || 0);
+      }, 0);
+      const firestoreDocs = [
+        ...(profileSnap.exists() ? [{ path: profileSnap.ref.path, data: profileSnap.data() }] : []),
+        ...(settingsSnap.exists() ? [{ path: settingsSnap.ref.path, data: settingsSnap.data() }] : []),
+        ...clientsSnap.docs.map(document => ({ path: document.ref.path, data: document.data() })),
+        ...recordsSnap.docs.map(document => ({ path: document.ref.path, data: document.data() })),
+        ...ingredientsSnap.docs.map(document => ({ path: document.ref.path, data: document.data() })),
+        ...attendanceSnap.docs.map(document => ({ path: document.ref.path, data: document.data() })),
+        ...storageUploadsSnap.docs.map(document => ({ path: document.ref.path, data: document.data() })),
+      ];
+      const firestoreBytes = firestoreDocs.reduce((total, document) => total + estimateFirestoreDocBytes(document.path, document.data), 0);
+      const cloudPhotoCount =
+        clientsSnap.docs.filter(clientDoc => !!(clientDoc.data() as Client).imageUri).length +
+        recordsSnap.docs.reduce((total, recordDoc) => total + getArrayLength((recordDoc.data() as ProgressRecord).photoUris), 0) +
+        ingredientsSnap.docs.filter(ingredientDoc => !!(ingredientDoc.data() as FoodLibraryItem).imageUri).length;
+      const untrackedPhotoCount = Math.max(cloudPhotoCount - storageUploadsSnap.size, 0);
 
       return {
         ...profile,
@@ -422,6 +455,11 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         recordCount: recordsSnap.size,
         ingredientCount: ingredientsSnap.size,
         attendanceCount: attendanceSnap.size,
+        firestoreBytes,
+        firestoreDocCount: firestoreDocs.length,
+        storageBytes,
+        storageUploadCount: storageUploadsSnap.size,
+        untrackedPhotoCount,
       } as UserProfile;
     }));
     setAdminUsers(profiles.filter((profile): profile is UserProfile => !!profile).sort((a, b) => new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()));
@@ -464,6 +502,8 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
     const nextConfig = {
       ...config,
       adminEmails: normalizeEmails(config.adminEmails || []),
+      storageQuotaGb: Number(config.storageQuotaGb) > 0 ? Number(config.storageQuotaGb) : 1,
+      cloudinaryStorageQuotaGb: Number(config.cloudinaryStorageQuotaGb) > 0 ? Number(config.cloudinaryStorageQuotaGb) : 25,
     };
     await Promise.all([
       setDoc(doc(db, 'admin_config', 'app'), { ...nextConfig, trialDays: deleteField() }, { merge: true }),

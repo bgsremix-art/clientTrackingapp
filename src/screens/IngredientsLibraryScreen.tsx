@@ -4,8 +4,9 @@ import { COLORS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useClients } from '../context/ClientContext';
 
-export default function IngredientsLibraryScreen({ navigation }: any) {
+export default function IngredientsLibraryScreen({ navigation, route }: any) {
   const { ingredients, deleteIngredient, t } = useClients();
+  const showBack = route?.params?.showBack;
   const [activeTab, setActiveTab] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const tabs = ['All', 'Protein', 'Carbs', 'Veggies', 'Fruits'];
@@ -26,7 +27,13 @@ export default function IngredientsLibraryScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-         <Text style={{width: 24}}/>
+         {showBack ? (
+           <TouchableOpacity style={styles.headerIconBtn} onPress={() => navigation.goBack()}>
+             <Ionicons name="chevron-back" size={24} color={COLORS.text} />
+           </TouchableOpacity>
+         ) : (
+           <View style={styles.headerIconBtn} />
+         )}
          <Text style={styles.headerTitle}>{t('ingredientsLibrary')}</Text>
          <TouchableOpacity style={styles.headerAddBtn} onPress={() => navigation.navigate('AddIngredient', {})}>
             <Ionicons name="add" size={20} color={COLORS.primary} />
@@ -81,6 +88,7 @@ export default function IngredientsLibraryScreen({ navigation }: any) {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 60, paddingBottom: 16 },
+  headerIconBtn: { width: 44, height: 44, alignItems: 'flex-start', justifyContent: 'center' },
   headerTitle: { color: COLORS.text, fontSize: 20, fontWeight: 'bold' },
   headerAddBtn: { alignItems: 'center' },
   searchInput: { backgroundColor: COLORS.surfaceLight, color: COLORS.text, padding: 12, borderRadius: 12, marginHorizontal: 16, marginBottom: 8 },

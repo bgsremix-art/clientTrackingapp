@@ -1,9 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { sendPasswordResetEmail } from 'firebase/auth';
 import { COLORS } from '../constants/theme';
-import { auth } from '../config/firebase';
 import { useClients } from '../context/ClientContext';
 import { UserProfile } from '../models/types';
 import { getAccessStatus, TRIAL_DAYS } from '../utils/accessStatus';
@@ -118,18 +116,6 @@ export default function AdminUsersScreen({ route, navigation }: any) {
     ]);
   };
 
-  const sendResetPassword = (profile: UserProfile) => {
-    if (!profile.email) {
-      Alert.alert('Missing email', 'This user email is not saved yet. Ask the user to log in once, then try again.');
-      return;
-    }
-
-    runAdminAction(
-      () => sendPasswordResetEmail(auth, profile.email),
-      `Password reset email sent to ${getDisplayEmail(profile)}.`
-    );
-  };
-
   if (!isAdmin) {
     return (
       <View style={styles.center}>
@@ -221,7 +207,6 @@ export default function AdminUsersScreen({ route, navigation }: any) {
                 <View style={styles.actions}>
                   <AdminAction label="+1 Month" onPress={() => extendSubscription(selectedUser, 1)} />
                   <AdminAction label="+3 Months" onPress={() => extendSubscription(selectedUser, 3)} />
-                  <AdminAction label="Reset Password" onPress={() => sendResetPassword(selectedUser)} />
                   <AdminAction label="Reset Trial" onPress={() => resetTrial(selectedUser)} />
                   <AdminAction label="Expire User" danger onPress={() => expireUser(selectedUser)} />
                   <AdminAction

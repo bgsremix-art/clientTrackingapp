@@ -1,3 +1,6 @@
+import { doc, setDoc } from 'firebase/firestore';
+import { db } from '../config/firebase';
+
 // We are keeping the function name the same so we don't have to rewrite the other screens!
 export const uploadImageToFirebase = async (uri: string, userId: string, folder: string): Promise<string> => {
   try {
@@ -31,6 +34,22 @@ export const uploadImageToFirebase = async (uri: string, userId: string, folder:
     if (result.error) {
        console.error("Cloudinary Error:", result.error);
        throw new Error(result.error.message);
+    }
+
+    if (result.secure_url) {
+      const id = result.asset_id || `${Date.now()}`;
+      setDoc(doc(db, 'users', userId, 'storage_uploads', id), {
+        id,
+        provider: 'cloudinary',
+        folder,
+        url: result.secure_url,
+        publicId: result.public_id || '',
+        bytes: Number(result.bytes) || 0,
+        format: result.format || '',
+        createdAt: new Date().toISOString(),
+      }, { merge: true }).catch((error) => {
+        console.log('Failed to save upload storage metadata:', error);
+      });
     }
 
     // 4. Return the secure URL. This URL is automatically saved into your FIREBASE DATABASE!

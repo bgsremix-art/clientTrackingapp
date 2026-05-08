@@ -83,6 +83,8 @@ function AdminStackScreen() {
     >
       <AdminStack.Screen name="AdminHome" component={AdminScreen} />
       <AdminStack.Screen name="AdminUsers" component={AdminUsersScreen} />
+      <AdminStack.Screen name="AdminIngredients" component={IngredientsLibraryScreen} initialParams={{ showBack: true }} />
+      <AdminStack.Screen name="AddIngredient" component={AddIngredientScreen} />
     </AdminStack.Navigator>
   );
 }

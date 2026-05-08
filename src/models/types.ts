@@ -69,12 +69,19 @@ export interface UserProfile {
   recordCount?: number;
   ingredientCount?: number;
   attendanceCount?: number;
+  firestoreBytes?: number;
+  firestoreDocCount?: number;
+  storageBytes?: number;
+  storageUploadCount?: number;
+  untrackedPhotoCount?: number;
 }
 
 export interface AdminAppConfig {
   adminEmails?: string[];
   maintenanceMessage?: string;
   forceUpdateVersion?: string;
+  storageQuotaGb?: number;
+  cloudinaryStorageQuotaGb?: number;
 }
 
 export interface BakongAdminConfig {

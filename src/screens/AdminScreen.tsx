@@ -14,6 +14,15 @@ const formatDate = (value?: string) => {
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
+const BYTES_IN_GB = 1024 * 1024 * 1024;
+
+const formatStorage = (bytes: number) => {
+  if (bytes >= BYTES_IN_GB) return `${(bytes / BYTES_IN_GB).toFixed(2)} GB`;
+  if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${bytes} B`;
+};
+
 export type AdminUserFilter = 'all' | 'today' | 'week' | 'paid' | 'trial' | 'expired';
 
 const getUserAccessLabel = (profile: UserProfile) => {
@@ -37,24 +46,19 @@ export default function AdminScreen({ navigation }: any) {
   const {
     isAdmin,
     adminUsers,
+    ingredients,
     adminAppConfig,
     bakongConfig,
     refreshAdminUsers,
-    updateAdminAppConfig,
     updateBakongToken,
   } = useClients();
 
   const [bakongToken, setBakongToken] = useState('');
-  const [adminEmailsText, setAdminEmailsText] = useState((adminAppConfig.adminEmails || []).join('\n'));
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setBakongToken(bakongConfig.bakongToken || '');
   }, [bakongConfig.bakongToken]);
-
-  useEffect(() => {
-    setAdminEmailsText((adminAppConfig.adminEmails || []).join('\n'));
-  }, [adminAppConfig.adminEmails]);
 
   const stats = useMemo(() => {
     const now = Date.now();
@@ -76,6 +80,40 @@ export default function AdminScreen({ navigation }: any) {
     );
   }, [adminUsers]);
 
+  const firestoreStats = useMemo(() => {
+    const quotaGb = Number(adminAppConfig.storageQuotaGb) > 0 ? Number(adminAppConfig.storageQuotaGb) : 1;
+    const quotaBytes = quotaGb * BYTES_IN_GB;
+    const usedBytes = adminUsers.reduce((total, profile) => total + (profile.firestoreBytes || 0), 0);
+    const docCount = adminUsers.reduce((total, profile) => total + (profile.firestoreDocCount || 0), 0);
+    const usedPercent = quotaBytes > 0 ? Math.min((usedBytes / quotaBytes) * 100, 100) : 0;
+    return {
+      quotaGb,
+      quotaBytes,
+      usedBytes,
+      freeBytes: Math.max(quotaBytes - usedBytes, 0),
+      usedPercent,
+      docCount,
+    };
+  }, [adminUsers, adminAppConfig.storageQuotaGb]);
+
+  const cloudinaryStats = useMemo(() => {
+    const quotaGb = Number(adminAppConfig.cloudinaryStorageQuotaGb) > 0 ? Number(adminAppConfig.cloudinaryStorageQuotaGb) : 25;
+    const quotaBytes = quotaGb * BYTES_IN_GB;
+    const usedBytes = adminUsers.reduce((total, profile) => total + (profile.storageBytes || 0), 0);
+    const untrackedPhotoCount = adminUsers.reduce((total, profile) => total + (profile.untrackedPhotoCount || 0), 0);
+    const uploadCount = adminUsers.reduce((total, profile) => total + (profile.storageUploadCount || 0), 0);
+    const usedPercent = quotaBytes > 0 ? Math.min((usedBytes / quotaBytes) * 100, 100) : 0;
+    return {
+      quotaGb,
+      quotaBytes,
+      usedBytes,
+      freeBytes: Math.max(quotaBytes - usedBytes, 0),
+      usedPercent,
+      uploadCount,
+      untrackedPhotoCount,
+    };
+  }, [adminUsers, adminAppConfig.cloudinaryStorageQuotaGb]);
+
   const runAdminAction = async (action: () => Promise<void>, successMessage: string) => {
     setSaving(true);
     try {
@@ -94,14 +132,6 @@ export default function AdminScreen({ navigation }: any) {
       return;
     }
     runAdminAction(() => updateBakongToken(bakongToken), 'Bakong token updated.');
-  };
-
-  const saveAppConfig = () => {
-    const adminEmails = adminEmailsText
-      .split(/\r?\n|,/)
-      .map(email => email.trim().toLowerCase())
-      .filter(Boolean);
-    runAdminAction(() => updateAdminAppConfig({ ...adminAppConfig, adminEmails }), 'App config updated.');
   };
 
   const openUsers = (filter: AdminUserFilter, title: string) => {
@@ -144,6 +174,62 @@ export default function AdminScreen({ navigation }: any) {
         <StatCard label="Expired" value={stats.expired} onPress={() => openUsers('expired', 'Expired Users')} />
       </View>
 
+      <TouchableOpacity style={styles.manageCard} onPress={() => navigation.navigate('AdminIngredients')} activeOpacity={0.85}>
+        <View style={styles.manageIcon}>
+          <Ionicons name="restaurant-outline" size={24} color={COLORS.primary} />
+        </View>
+        <View style={styles.manageContent}>
+          <Text style={styles.manageTitle}>Ingredient Library</Text>
+          <Text style={styles.manageSub}>{ingredients.length} ingredients</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color={COLORS.textDim} />
+      </TouchableOpacity>
+
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Ionicons name="server-outline" size={22} color={COLORS.primary} />
+          <Text style={styles.cardTitle}>Firestore Database</Text>
+        </View>
+        <View style={styles.storageMeter}>
+          <View style={[styles.storageFill, { width: `${firestoreStats.usedPercent}%` }]} />
+        </View>
+        <View style={styles.storageRow}>
+          <View>
+            <Text style={styles.storageValue}>{formatStorage(firestoreStats.usedBytes)}</Text>
+            <Text style={styles.storageLabel}>Used</Text>
+          </View>
+          <View style={styles.storageRight}>
+            <Text style={styles.storageValue}>{formatStorage(firestoreStats.freeBytes)}</Text>
+            <Text style={styles.storageLabel}>Free of {firestoreStats.quotaGb} GB</Text>
+          </View>
+        </View>
+        <Text style={styles.helperText}>Estimated from {firestoreStats.docCount} Firestore documents.</Text>
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Ionicons name="images-outline" size={22} color={COLORS.primary} />
+          <Text style={styles.cardTitle}>Cloudinary Storage</Text>
+        </View>
+        <View style={styles.storageMeter}>
+          <View style={[styles.storageFill, { width: `${cloudinaryStats.usedPercent}%` }]} />
+        </View>
+        <View style={styles.storageRow}>
+          <View>
+            <Text style={styles.storageValue}>{formatStorage(cloudinaryStats.usedBytes)}</Text>
+            <Text style={styles.storageLabel}>Used</Text>
+          </View>
+          <View style={styles.storageRight}>
+            <Text style={styles.storageValue}>{formatStorage(cloudinaryStats.freeBytes)}</Text>
+            <Text style={styles.storageLabel}>Free of {cloudinaryStats.quotaGb} GB</Text>
+          </View>
+        </View>
+        <Text style={styles.helperText}>
+          Tracked uploads: {cloudinaryStats.uploadCount}
+          {cloudinaryStats.untrackedPhotoCount > 0 ? ` | Old photos without size data: ${cloudinaryStats.untrackedPhotoCount}` : ''}
+        </Text>
+      </View>
+
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Ionicons name="key-outline" size={22} color={COLORS.primary} />
@@ -161,26 +247,6 @@ export default function AdminScreen({ navigation }: any) {
         <Text style={styles.helperText}>Last updated: {formatDate(bakongConfig.updatedAt)}</Text>
         <TouchableOpacity style={styles.primaryBtn} onPress={saveBakong} disabled={saving}>
           <Text style={styles.primaryBtnText}>Save Bakong Token</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Ionicons name="settings-outline" size={22} color={COLORS.primary} />
-          <Text style={styles.cardTitle}>App Config</Text>
-        </View>
-        <Text style={styles.label}>Admin emails</Text>
-        <TextInput
-          style={[styles.input, styles.emailInput]}
-          value={adminEmailsText}
-          onChangeText={setAdminEmailsText}
-          placeholder="admin@example.com"
-          placeholderTextColor={COLORS.textDim}
-          autoCapitalize="none"
-          multiline
-        />
-        <TouchableOpacity style={styles.primaryBtn} onPress={saveAppConfig} disabled={saving}>
-          <Text style={styles.primaryBtnText}>Save App Config</Text>
         </TouchableOpacity>
       </View>
 
@@ -215,14 +281,23 @@ const styles = StyleSheet.create({
   statIcon: { position: 'absolute', right: 8, bottom: 8 },
   statValue: { color: COLORS.primary, fontSize: 24, fontWeight: 'bold' },
   statLabel: { color: COLORS.textDim, fontSize: 12, marginTop: 4 },
+  manageCard: { backgroundColor: COLORS.surface, borderRadius: 8, padding: 16, borderWidth: 1, borderColor: COLORS.border, marginBottom: 18, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  manageIcon: { width: 44, height: 44, borderRadius: 8, backgroundColor: COLORS.background, alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: COLORS.border },
+  manageContent: { flex: 1 },
+  manageTitle: { color: COLORS.text, fontSize: 17, fontWeight: 'bold' },
+  manageSub: { color: COLORS.textDim, fontSize: 13, marginTop: 4 },
   card: { backgroundColor: COLORS.surface, borderRadius: 8, padding: 16, borderWidth: 1, borderColor: COLORS.border, marginBottom: 18 },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 14 },
   cardTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
   input: { backgroundColor: COLORS.background, color: COLORS.text, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 12 },
   tokenInput: { minHeight: 110, textAlignVertical: 'top', fontSize: 12 },
-  emailInput: { minHeight: 84, textAlignVertical: 'top', marginTop: 8, marginBottom: 14 },
   helperText: { color: COLORS.textDim, fontSize: 12, marginTop: 8, marginBottom: 12 },
+  storageMeter: { height: 10, backgroundColor: COLORS.background, borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, overflow: 'hidden', marginBottom: 14 },
+  storageFill: { height: '100%', backgroundColor: COLORS.primary, borderRadius: 8 },
+  storageRow: { flexDirection: 'row', justifyContent: 'space-between', gap: 16 },
+  storageRight: { alignItems: 'flex-end' },
+  storageValue: { color: COLORS.text, fontSize: 20, fontWeight: 'bold' },
+  storageLabel: { color: COLORS.textDim, fontSize: 12, marginTop: 4 },
   primaryBtn: { backgroundColor: COLORS.primary, borderRadius: 8, padding: 14, alignItems: 'center' },
   primaryBtnText: { color: '#000', fontWeight: 'bold' },
-  label: { color: COLORS.text, fontSize: 15, fontWeight: 'bold' },
 });
