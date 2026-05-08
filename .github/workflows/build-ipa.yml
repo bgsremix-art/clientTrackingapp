@@ -17,13 +17,27 @@ jobs:
           node-version: 22
 
       - name: Install Dependencies
-        run: npm install
+        run: |
+          npm install
+          npx expo install --fix
+        env:
+          CI: true
 
       - name: Generate iOS Folder (Expo Prebuild)
         run: |
           npx expo prebuild --platform ios --no-install --clean
         env:
           CI: true
+
+      - name: Fix Podfile Deployment Target
+        run: |
+          echo "post_install do |installer|
+            installer.pods_project.targets.each do |target|
+              target.build_configurations.each do |config|
+                config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.1'
+              end
+            end
+          end" >> ios/Podfile
 
       - name: Verify iOS Folder Generation
         run: |
