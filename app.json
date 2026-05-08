@@ -16,8 +16,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.anonymous.clientTracking",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to save QR codes for payments.",
-        "NSPhotoLibraryAddUsageDescription": "This app needs permission to add QR code images to your photo library."
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library so you can choose and save client photos.",
+        "NSPhotoLibraryAddUsageDescription": "This app needs permission to save client photos and payment QR images to your photo library."
       }
     },
     "android": {

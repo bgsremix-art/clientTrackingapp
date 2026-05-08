@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, Image, KeyboardAvoidingView, Platform, Alert } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import * as MediaLibrary from 'expo-media-library';
-import * as FileSystem from 'expo-file-system/legacy';
 import { COLORS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useClients } from '../context/ClientContext';
 import { useAuth } from '../context/AuthContext';
 import { uploadImageToFirebase } from '../utils/firebaseStorage';
+import { saveImageToGallery } from '../utils/saveImageToGallery';
 import { calculateBMR, calculateBMI, getHealthyWeightRange, calculateEstimatedWeeks } from '../utils/bmrEngine';
 
 export default function ClientDetailScreen({ route, navigation }: any) {
@@ -121,22 +120,11 @@ export default function ClientDetailScreen({ route, navigation }: any) {
 
    const handleSaveToGallery = async (uri: string) => {
       try {
-         const { status } = await MediaLibrary.requestPermissionsAsync();
-         if (status !== 'granted') {
+         const saved = await saveImageToGallery(uri);
+         if (!saved) {
             Alert.alert('Permission needed', 'Please allow access to your photos to save images.');
             return;
          }
-
-         let localUri = uri;
-         if (uri.startsWith('http')) {
-            const filename = uri.split('/').pop();
-            const fileUri = `${FileSystem.documentDirectory}${filename}`;
-            const downloadResult = await FileSystem.downloadAsync(uri, fileUri);
-            localUri = downloadResult.uri;
-         }
-
-         const asset = await MediaLibrary.createAssetAsync(localUri);
-         await MediaLibrary.createAlbumAsync('ClientTracking', asset, false);
          Alert.alert(t('success'), t('saveToGallery'));
       } catch (error) {
          console.error(error);
