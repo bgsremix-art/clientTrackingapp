@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { collection, doc, getDoc, getDocs, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, collectionGroup, doc, getDoc, getDocs, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
 import { Platform } from 'react-native';
 import { db } from '../config/firebase';
 import { useAuth } from './AuthContext';
@@ -332,10 +332,21 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
 
   const refreshAdminUsers = async () => {
     if (!isAdmin) return;
-    const snap = await getDocs(collection(db, 'users'));
-    const profiles = await Promise.all(snap.docs.map(async (userDoc) => {
-      const uid = userDoc.id;
-      const profile = userDoc.data() as UserProfile;
+    const usersSnap = await getDocs(collection(db, 'users'));
+    const settingsSnap = await getDocs(collectionGroup(db, 'settings'));
+
+    const userIds = new Set<string>();
+    usersSnap.docs.forEach((userDoc) => userIds.add(userDoc.id));
+    settingsSnap.docs.forEach((settingsDoc) => {
+      if (settingsDoc.id === 'app_settings') {
+        const userDocRef = settingsDoc.ref.parent.parent;
+        if (userDocRef) userIds.add(userDocRef.id);
+      }
+    });
+
+    const profiles = await Promise.all(Array.from(userIds).map(async (uid) => {
+      const profileSnap = await getDoc(doc(db, 'users', uid));
+      const profile = profileSnap.exists() ? profileSnap.data() as Partial<UserProfile> : {};
       const settingsSnap = await getDoc(doc(db, 'users', uid, 'settings', 'app_settings'));
       const userSettings = settingsSnap.exists() ? settingsSnap.data() as AppSettings : null;
       const [clientsSnap, recordsSnap, ingredientsSnap, attendanceSnap] = await Promise.all([
