@@ -30,15 +30,18 @@ jobs:
           fi
           ls -R ios
 
-      - name: List Xcode Schemes (Debug)
-        run: |
-          cd ios
-          xcodebuild -list -workspace *.xcworkspace
-
       - name: Install Pods
         run: |
           cd ios
           pod install
+
+      - name: List Xcode Schemes (Debug)
+        run: |
+          cd ios
+          # Find the workspace file
+          WORKSPACE=$(ls -d *.xcworkspace | head -n 1)
+          echo "Found workspace: $WORKSPACE"
+          xcodebuild -list -workspace "$WORKSPACE"
 
       - name: Build iOS App (Unsigned)
         run: |
