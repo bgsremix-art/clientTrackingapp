@@ -14,7 +14,7 @@ const formatDate = (value?: string) => {
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
-const getUserAccessLabel = (profile: UserProfile) => {
+const getUserAccessLabel = (profile: UserProfile, trialDays: number) => {
   if (profile.blocked) return { label: 'Blocked', color: COLORS.error };
   const status = getAccessStatus({
     loseWeightCals: -500,
@@ -23,7 +23,7 @@ const getUserAccessLabel = (profile: UserProfile) => {
     language: 'en',
     trialStartedAt: profile.trialStartedAt,
     subscriptionExpiry: profile.subscriptionExpiry || undefined,
-  });
+  }, Date.now(), trialDays);
 
   if (!status.active) return { label: 'Expired', color: '#ff9800' };
   if (status.type === 'subscription') return { label: `Paid ${status.days}d`, color: COLORS.primary };
@@ -70,7 +70,7 @@ export default function AdminScreen() {
     return adminUsers.reduce(
       (acc, profile) => {
         const activeAt = new Date(profile.lastActiveAt).getTime();
-        const status = getUserAccessLabel(profile).label;
+        const status = getUserAccessLabel(profile, adminAppConfig.trialDays || TRIAL_DAYS).label;
         acc.total += 1;
         if (now - activeAt <= day) acc.activeToday += 1;
         if (now - activeAt <= day * 7) acc.activeWeek += 1;
@@ -82,7 +82,7 @@ export default function AdminScreen() {
       },
       { total: 0, activeToday: 0, activeWeek: 0, paid: 0, trial: 0, expired: 0, blocked: 0 }
     );
-  }, [adminUsers]);
+  }, [adminUsers, adminAppConfig.trialDays]);
 
   const runAdminAction = async (action: () => Promise<void>, successMessage: string) => {
     setSaving(true);
@@ -115,7 +115,8 @@ export default function AdminScreen() {
   };
 
   const expireUser = (profile: UserProfile) => {
-    const expiredTrialStart = new Date(Date.now() - (TRIAL_DAYS + 1) * 24 * 60 * 60 * 1000).toISOString();
+    const configuredTrialDays = adminAppConfig.trialDays || TRIAL_DAYS;
+    const expiredTrialStart = new Date(Date.now() - (configuredTrialDays + 1) * 24 * 60 * 60 * 1000).toISOString();
     runAdminAction(
       () => updateUserSubscription(profile.uid, '', expiredTrialStart),
       `${profile.email || profile.uid} is now expired.`
@@ -234,7 +235,7 @@ export default function AdminScreen() {
         />
 
         {filteredUsers.map((profile) => {
-          const access = getUserAccessLabel(profile);
+          const access = getUserAccessLabel(profile, adminAppConfig.trialDays || TRIAL_DAYS);
           return (
             <View key={profile.uid} style={styles.userCard}>
               <View style={styles.userTopRow}>
@@ -242,6 +243,7 @@ export default function AdminScreen() {
                   <Text style={styles.userEmail} numberOfLines={1}>{profile.email || profile.uid}</Text>
                   <Text style={styles.userMeta}>Last active: {formatDate(profile.lastActiveAt)} | {profile.platform}</Text>
                   <Text style={styles.userMeta}>Trial: {formatDate(profile.trialStartedAt)} | Sub: {formatDate(profile.subscriptionExpiry)}</Text>
+                  <Text style={styles.userMeta}>Clients: {profile.clientCount || 0} | Records: {profile.recordCount || 0} | Attendance: {profile.attendanceCount || 0}</Text>
                 </View>
                 <View style={[styles.badge, { borderColor: access.color }]}>
                   <Text style={[styles.badgeText, { color: access.color }]}>{access.label}</Text>

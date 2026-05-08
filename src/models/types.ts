@@ -65,6 +65,10 @@ export interface UserProfile {
   blocked?: boolean;
   trialStartedAt?: string;
   subscriptionExpiry?: string;
+  clientCount?: number;
+  recordCount?: number;
+  ingredientCount?: number;
+  attendanceCount?: number;
 }
 
 export interface AdminAppConfig {

@@ -281,7 +281,14 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
     });
   };
   
-  const updateSettings = (s: AppSettings) => { if (user) setDoc(doc(db, 'users', user.uid, 'settings', 'app_settings'), s); };
+  const updateSettings = (s: AppSettings) => {
+    if (!user) return;
+    setDoc(doc(db, 'users', user.uid, 'settings', 'app_settings'), s);
+    setDoc(doc(db, 'users', user.uid), {
+      trialStartedAt: s.trialStartedAt || '',
+      subscriptionExpiry: s.subscriptionExpiry || '',
+    }, { merge: true });
+  };
 
   useEffect(() => {
     if (!isAdmin) {
@@ -293,10 +300,13 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
       setBakongConfig(snap.exists() ? (snap.data() as BakongAdminConfig) : {});
     });
 
-    refreshAdminUsers();
+    const unsubUsers = onSnapshot(collection(db, 'users'), () => {
+      refreshAdminUsers();
+    });
 
     return () => {
       unsubBakong();
+      unsubUsers();
     };
   }, [isAdmin]);
 
@@ -324,7 +334,33 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
     if (!isAdmin) return;
     const snap = await getDocs(collection(db, 'users'));
     const profiles = await Promise.all(snap.docs.map(async (userDoc) => {
-      return userDoc.data() as UserProfile;
+      const uid = userDoc.id;
+      const profile = userDoc.data() as UserProfile;
+      const settingsSnap = await getDoc(doc(db, 'users', uid, 'settings', 'app_settings'));
+      const userSettings = settingsSnap.exists() ? settingsSnap.data() as AppSettings : null;
+      const [clientsSnap, recordsSnap, ingredientsSnap, attendanceSnap] = await Promise.all([
+        getDocs(collection(db, 'users', uid, 'clients')),
+        getDocs(collection(db, 'users', uid, 'records')),
+        getDocs(collection(db, 'users', uid, 'ingredients')),
+        getDocs(collection(db, 'users', uid, 'attendance')),
+      ]);
+
+      return {
+        ...profile,
+        uid: profile.uid || uid,
+        email: profile.email || '',
+        createdAt: profile.createdAt || '',
+        lastActiveAt: profile.lastActiveAt || profile.createdAt || '',
+        platform: profile.platform || 'unknown',
+        appVersion: profile.appVersion || 'unknown',
+        role: profile.role || 'user',
+        trialStartedAt: userSettings?.trialStartedAt || profile.trialStartedAt || '',
+        subscriptionExpiry: userSettings?.subscriptionExpiry || profile.subscriptionExpiry || '',
+        clientCount: clientsSnap.size,
+        recordCount: recordsSnap.size,
+        ingredientCount: ingredientsSnap.size,
+        attendanceCount: attendanceSnap.size,
+      } as UserProfile;
     }));
     setAdminUsers(profiles.filter((profile): profile is UserProfile => !!profile).sort((a, b) => new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()));
   };
@@ -358,6 +394,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
       deleteCollectionDocs(uid, 'ingredients'),
       deleteCollectionDocs(uid, 'attendance'),
     ]);
+    await refreshAdminUsers();
   };
 
   const updateAdminAppConfig = async (config: AdminAppConfig) => {
