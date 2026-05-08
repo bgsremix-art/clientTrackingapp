@@ -91,26 +91,38 @@ jobs:
 
       - name: Build iOS App (Unsigned)
         run: |
+          set -o pipefail
           cd ios
           WORKSPACE=$(ls -d *.xcworkspace | head -n 1)
           echo "Using workspace: $WORKSPACE"
           
           # Use 'build' instead of 'archive' for better compatibility with unsigned builds
           # Disable parallel builds to resolve explicit dependency errors (e.g., React-RCTVibration)
-          xcodebuild -workspace "$WORKSPACE" -scheme clientTracking -configuration Release -destination 'generic/platform=iOS' -sdk iphoneos build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" EXPANDED_CODE_SIGN_IDENTITY="" COMPILER_INDEX_STORE_ENABLE=NO ONLY_ACTIVE_ARCH=NO -parallelizeTargets NO -derivedDataPath ./build | tee build.log || (tail -n 100 build.log && exit 1)
+          xcodebuild -workspace "$WORKSPACE" -scheme clientTracking -configuration Release -destination 'generic/platform=iOS' -sdk iphoneos build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" EXPANDED_CODE_SIGN_IDENTITY="" COMPILER_INDEX_STORE_ENABLE=NO ONLY_ACTIVE_ARCH=NO -parallelizeTargets NO -derivedDataPath ./build 2>&1 | tee build.log
           
           # Package the compiled .app into an .ipa file
-          APP_PATH=$(find build -name "*.app" | grep "Release-iphoneos" | head -n 1)
+          echo "Available .app bundles:"
+          find build -type d -name "*.app" -print || true
+
+          APP_PATH=$(find build -type d -path "*/Release-iphoneos/*.app" -print -quit)
+          if [ -z "$APP_PATH" ]; then
+            APP_PATH=$(find build -type d -name "*.app" -print -quit)
+          fi
           
           echo "Found app at: $APP_PATH"
           if [ -z "$APP_PATH" ]; then
             echo "::error::Could not find .app file in build directory"
+            echo "Build directory contents:"
+            find build -maxdepth 5 -print || true
+            echo "Last 100 lines of xcodebuild log:"
+            tail -n 100 build.log || true
             exit 1
           fi
           
+          rm -rf Payload app.ipa
           mkdir -p Payload
           cp -r "$APP_PATH" Payload/
-          zip -r app.ipa Payload
+          zip -qry app.ipa Payload
 
       - name: Upload IPA File
         uses: actions/upload-artifact@v4
