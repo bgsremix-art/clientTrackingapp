@@ -116,7 +116,9 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   const [adminAppConfig, setAdminAppConfig] = useState<AdminAppConfig>({ trialDays: 3 });
   const [bakongConfig, setBakongConfig] = useState<BakongAdminConfig>({});
 
-  const emailIsAdmin = user?.email ? ADMIN_EMAILS.includes(user.email.toLowerCase()) : false;
+  const fallbackAdminEmails = ADMIN_EMAILS.map(email => email.toLowerCase());
+  const firebaseAdminEmails = (adminAppConfig.adminEmails || []).map(email => email.toLowerCase());
+  const emailIsAdmin = user?.email ? [...fallbackAdminEmails, ...firebaseAdminEmails].includes(user.email.toLowerCase()) : false;
   const isAdmin = emailIsAdmin || userProfile?.role === 'admin';
 
   useEffect(() => {
@@ -317,12 +319,25 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         const data = snap.data() as AdminAppConfig;
         setAdminAppConfig({ ...data, trialDays: data.trialDays ?? 3 });
       } else {
-        setAdminAppConfig({ trialDays: 3 });
+        setAdminAppConfig({ trialDays: 3, adminEmails: ADMIN_EMAILS });
       }
     });
 
     return unsubAdminApp;
   }, [user]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    const existing = (adminAppConfig.adminEmails || []).map(email => email.toLowerCase());
+    const missingFallbackEmails = ADMIN_EMAILS.filter(email => !existing.includes(email.toLowerCase()));
+
+    if (missingFallbackEmails.length > 0) {
+      setDoc(doc(db, 'admin_config', 'app'), {
+        adminEmails: [...(adminAppConfig.adminEmails || []), ...missingFallbackEmails],
+        trialDays: adminAppConfig.trialDays || 3,
+      }, { merge: true });
+    }
+  }, [isAdmin, adminAppConfig.adminEmails, adminAppConfig.trialDays]);
 
   const assertAdmin = () => {
     if (!isAdmin || !user) {

@@ -46,6 +46,7 @@ export default function AdminScreen({ navigation }: any) {
 
   const [bakongToken, setBakongToken] = useState('');
   const [trialDays, setTrialDays] = useState((adminAppConfig.trialDays || TRIAL_DAYS).toString());
+  const [adminEmailsText, setAdminEmailsText] = useState((adminAppConfig.adminEmails || []).join('\n'));
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -55,6 +56,10 @@ export default function AdminScreen({ navigation }: any) {
   useEffect(() => {
     setTrialDays((adminAppConfig.trialDays || TRIAL_DAYS).toString());
   }, [adminAppConfig.trialDays]);
+
+  useEffect(() => {
+    setAdminEmailsText((adminAppConfig.adminEmails || []).join('\n'));
+  }, [adminAppConfig.adminEmails]);
 
   const stats = useMemo(() => {
     const now = Date.now();
@@ -102,7 +107,11 @@ export default function AdminScreen({ navigation }: any) {
       Alert.alert('Invalid trial days', 'Please enter a valid number.');
       return;
     }
-    runAdminAction(() => updateAdminAppConfig({ ...adminAppConfig, trialDays: days }), 'App config updated.');
+    const adminEmails = adminEmailsText
+      .split(/\r?\n|,/)
+      .map(email => email.trim().toLowerCase())
+      .filter(Boolean);
+    runAdminAction(() => updateAdminAppConfig({ ...adminAppConfig, trialDays: days, adminEmails }), 'App config updated.');
   };
 
   const openUsers = (filter: AdminUserFilter, title: string) => {
@@ -174,6 +183,16 @@ export default function AdminScreen({ navigation }: any) {
           <Text style={styles.label}>Trial days</Text>
           <TextInput style={styles.smallInput} value={trialDays} onChangeText={setTrialDays} keyboardType="numeric" />
         </View>
+        <Text style={styles.label}>Admin emails</Text>
+        <TextInput
+          style={[styles.input, styles.emailInput]}
+          value={adminEmailsText}
+          onChangeText={setAdminEmailsText}
+          placeholder="admin@example.com"
+          placeholderTextColor={COLORS.textDim}
+          autoCapitalize="none"
+          multiline
+        />
         <TouchableOpacity style={styles.primaryBtn} onPress={saveAppConfig} disabled={saving}>
           <Text style={styles.primaryBtnText}>Save App Config</Text>
         </TouchableOpacity>
@@ -215,6 +234,7 @@ const styles = StyleSheet.create({
   cardTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
   input: { backgroundColor: COLORS.background, color: COLORS.text, borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 12 },
   tokenInput: { minHeight: 110, textAlignVertical: 'top', fontSize: 12 },
+  emailInput: { minHeight: 84, textAlignVertical: 'top', marginTop: 8, marginBottom: 14 },
   helperText: { color: COLORS.textDim, fontSize: 12, marginTop: 8, marginBottom: 12 },
   primaryBtn: { backgroundColor: COLORS.primary, borderRadius: 8, padding: 14, alignItems: 'center' },
   primaryBtnText: { color: '#000', fontWeight: 'bold' },
