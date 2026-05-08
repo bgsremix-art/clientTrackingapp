@@ -1,5 +1,5 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
-import { collection, collectionGroup, doc, getDoc, getDocs, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
+import { collection, collectionGroup, deleteField, doc, getDoc, getDocs, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
 import { Platform } from 'react-native';
 import { db } from '../config/firebase';
 import { useAuth } from './AuthContext';
@@ -128,7 +128,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [adminUsers, setAdminUsers] = useState<UserProfile[]>([]);
-  const [adminAppConfig, setAdminAppConfig] = useState<AdminAppConfig>({ trialDays: 3 });
+  const [adminAppConfig, setAdminAppConfig] = useState<AdminAppConfig>({});
   const [startAdminEmails, setStartAdminEmails] = useState<string[]>([]);
   const [bakongConfig, setBakongConfig] = useState<BakongAdminConfig>({});
 
@@ -156,6 +156,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
     const uid = user.uid;
     const profileRef = doc(db, 'users', uid);
     const now = new Date().toISOString();
+    const shouldStartTrial = user.emailVerified;
     const baseProfile: UserProfile = {
       uid,
       email: user.email || '',
@@ -205,8 +206,8 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
       if (docSnap.exists()) {
         const data = docSnap.data() as AppSettings;
         
-        // Initialize trial if not present
-        if (!data.trialStartedAt) {
+        // Initialize trial only after email verification.
+        if (!data.trialStartedAt && shouldStartTrial) {
           const initializedSettings = {
             ...data,
             trialStartedAt: new Date().toISOString()
@@ -222,7 +223,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         } else {
           setSettings(data);
           setDoc(profileRef, {
-            trialStartedAt: data.trialStartedAt,
+            trialStartedAt: data.trialStartedAt || '',
             subscriptionExpiry: data.subscriptionExpiry || ''
           }, { merge: true });
         }
@@ -232,13 +233,15 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
           loseWeightCals: -500, 
           gainMuscleCals: 300, 
           gainWeightCals: 500, 
-          language: 'en',
-          trialStartedAt: new Date().toISOString()
+          language: 'en'
         };
+        if (shouldStartTrial) {
+          initialSettings.trialStartedAt = new Date().toISOString();
+        }
         setSettings(initialSettings);
         setSettingsLoaded(true);
         setDoc(profileRef, {
-          trialStartedAt: initialSettings.trialStartedAt,
+          trialStartedAt: initialSettings.trialStartedAt || '',
           subscriptionExpiry: initialSettings.subscriptionExpiry || ''
         }, { merge: true });
         setDoc(doc(db, 'users', uid, 'settings', 'app_settings'), initialSettings);
@@ -268,7 +271,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
       unsubIngredients();
       unsubAttendance();
     };
-  }, [user]);
+  }, [user, user?.emailVerified]);
 
   useEffect(() => {
     if (!user) return;
@@ -333,6 +336,12 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   useEffect(() => {
+    if (!user?.emailVerified || !settingsLoaded || settings.trialStartedAt) return;
+
+    updateSettings({ ...settings, trialStartedAt: new Date().toISOString() });
+  }, [user?.emailVerified, settingsLoaded, settings.trialStartedAt]);
+
+  useEffect(() => {
     if (!isAdmin) {
       setAdminUsers([]);
       return;
@@ -357,9 +366,9 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubAdminApp = onSnapshot(doc(db, 'admin_config', 'app'), (snap) => {
       if (snap.exists()) {
         const data = snap.data() as AdminAppConfig;
-        setAdminAppConfig({ ...data, trialDays: data.trialDays ?? 3 });
+        setAdminAppConfig(data);
       } else {
-        setAdminAppConfig({ trialDays: 3, adminEmails: ADMIN_EMAILS });
+        setAdminAppConfig({ adminEmails: ADMIN_EMAILS });
       }
     });
 
@@ -457,7 +466,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
       adminEmails: normalizeEmails(config.adminEmails || []),
     };
     await Promise.all([
-      setDoc(doc(db, 'admin_config', 'app'), nextConfig, { merge: true }),
+      setDoc(doc(db, 'admin_config', 'app'), { ...nextConfig, trialDays: deleteField() }, { merge: true }),
       setDoc(doc(db, 'start', 'admin'), {
         adminEmails: nextConfig.adminEmails,
         updatedAt: new Date().toISOString(),

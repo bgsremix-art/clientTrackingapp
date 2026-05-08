@@ -11,7 +11,7 @@ import KHQRCard from '../components/KHQRCard';
 import { getAccessStatus } from '../utils/accessStatus';
 
 export default function SubscriptionScreen() {
-  const { settings, updateSettings, adminAppConfig, t } = useClients();
+  const { settings, updateSettings, t } = useClients();
   const [showPayment, setShowPayment] = useState(false);
   const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
@@ -125,7 +125,7 @@ export default function SubscriptionScreen() {
   };
 
   const getRemainingDaysInfo = () => {
-    return getAccessStatus(settings, Date.now(), adminAppConfig.trialDays);
+    return getAccessStatus(settings);
   };
 
   const statusInfo = getRemainingDaysInfo();

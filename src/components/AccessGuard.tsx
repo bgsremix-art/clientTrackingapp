@@ -15,8 +15,14 @@ interface AccessGuardProps {
 
 export const AccessGuard: React.FC<AccessGuardProps> = ({ children }) => {
   const { user, logout } = useAuth();
-  const { settings, settingsLoaded, userProfile, isAdmin, adminAppConfig, t } = useClients();
+  const { settings, settingsLoaded, userProfile, isAdmin, updateSettings, t } = useClients();
   const [checking, setChecking] = useState(false);
+
+  useEffect(() => {
+    if (!user?.emailVerified || !settingsLoaded || settings.trialStartedAt) return;
+
+    updateSettings({ ...settings, trialStartedAt: new Date().toISOString() });
+  }, [user?.emailVerified, settingsLoaded, settings.trialStartedAt]);
 
   const checkVerification = async () => {
     if (!auth.currentUser) return;
@@ -85,7 +91,7 @@ export const AccessGuard: React.FC<AccessGuardProps> = ({ children }) => {
     );
   }
 
-  const accessStatus = getAccessStatus(settings, Date.now(), adminAppConfig.trialDays);
+  const accessStatus = getAccessStatus(settings);
 
   // If both trial and subscription are expired, show subscription screen
   if (!accessStatus.active && !isAdmin) {

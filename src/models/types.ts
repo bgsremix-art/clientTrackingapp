@@ -72,7 +72,6 @@ export interface UserProfile {
 }
 
 export interface AdminAppConfig {
-  trialDays: number;
   adminEmails?: string[];
   maintenanceMessage?: string;
   forceUpdateVersion?: string;

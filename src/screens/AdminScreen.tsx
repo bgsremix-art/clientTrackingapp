@@ -5,7 +5,7 @@ import { COLORS } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
 import { useClients } from '../context/ClientContext';
 import { UserProfile } from '../models/types';
-import { getAccessStatus, TRIAL_DAYS } from '../utils/accessStatus';
+import { getAccessStatus } from '../utils/accessStatus';
 
 const formatDate = (value?: string) => {
   if (!value) return 'None';
@@ -16,7 +16,7 @@ const formatDate = (value?: string) => {
 
 export type AdminUserFilter = 'all' | 'today' | 'week' | 'paid' | 'trial' | 'expired';
 
-const getUserAccessLabel = (profile: UserProfile, trialDays: number) => {
+const getUserAccessLabel = (profile: UserProfile) => {
   if (profile.blocked) return { label: 'Blocked', color: COLORS.error };
   const status = getAccessStatus({
     loseWeightCals: -500,
@@ -25,7 +25,7 @@ const getUserAccessLabel = (profile: UserProfile, trialDays: number) => {
     language: 'en',
     trialStartedAt: profile.trialStartedAt,
     subscriptionExpiry: profile.subscriptionExpiry || undefined,
-  }, Date.now(), trialDays);
+  });
 
   if (!status.active) return { label: 'Expired', color: '#ff9800' };
   if (status.type === 'subscription') return { label: `Paid ${status.days}d`, color: COLORS.primary };
@@ -45,17 +45,12 @@ export default function AdminScreen({ navigation }: any) {
   } = useClients();
 
   const [bakongToken, setBakongToken] = useState('');
-  const [trialDays, setTrialDays] = useState((adminAppConfig.trialDays || TRIAL_DAYS).toString());
   const [adminEmailsText, setAdminEmailsText] = useState((adminAppConfig.adminEmails || []).join('\n'));
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setBakongToken(bakongConfig.bakongToken || '');
   }, [bakongConfig.bakongToken]);
-
-  useEffect(() => {
-    setTrialDays((adminAppConfig.trialDays || TRIAL_DAYS).toString());
-  }, [adminAppConfig.trialDays]);
 
   useEffect(() => {
     setAdminEmailsText((adminAppConfig.adminEmails || []).join('\n'));
@@ -67,7 +62,7 @@ export default function AdminScreen({ navigation }: any) {
     return adminUsers.reduce(
       (acc, profile) => {
         const activeAt = new Date(profile.lastActiveAt).getTime();
-        const status = getUserAccessLabel(profile, adminAppConfig.trialDays || TRIAL_DAYS).label;
+        const status = getUserAccessLabel(profile).label;
         acc.total += 1;
         if (now - activeAt <= day) acc.activeToday += 1;
         if (now - activeAt <= day * 7) acc.activeWeek += 1;
@@ -79,7 +74,7 @@ export default function AdminScreen({ navigation }: any) {
       },
       { total: 0, activeToday: 0, activeWeek: 0, paid: 0, trial: 0, expired: 0, blocked: 0 }
     );
-  }, [adminUsers, adminAppConfig.trialDays]);
+  }, [adminUsers]);
 
   const runAdminAction = async (action: () => Promise<void>, successMessage: string) => {
     setSaving(true);
@@ -102,16 +97,11 @@ export default function AdminScreen({ navigation }: any) {
   };
 
   const saveAppConfig = () => {
-    const days = parseInt(trialDays, 10);
-    if (Number.isNaN(days) || days < 0) {
-      Alert.alert('Invalid trial days', 'Please enter a valid number.');
-      return;
-    }
     const adminEmails = adminEmailsText
       .split(/\r?\n|,/)
       .map(email => email.trim().toLowerCase())
       .filter(Boolean);
-    runAdminAction(() => updateAdminAppConfig({ ...adminAppConfig, trialDays: days, adminEmails }), 'App config updated.');
+    runAdminAction(() => updateAdminAppConfig({ ...adminAppConfig, adminEmails }), 'App config updated.');
   };
 
   const openUsers = (filter: AdminUserFilter, title: string) => {
@@ -179,10 +169,6 @@ export default function AdminScreen({ navigation }: any) {
           <Ionicons name="settings-outline" size={22} color={COLORS.primary} />
           <Text style={styles.cardTitle}>App Config</Text>
         </View>
-        <View style={styles.row}>
-          <Text style={styles.label}>Trial days</Text>
-          <TextInput style={styles.smallInput} value={trialDays} onChangeText={setTrialDays} keyboardType="numeric" />
-        </View>
         <Text style={styles.label}>Admin emails</Text>
         <TextInput
           style={[styles.input, styles.emailInput]}
@@ -238,7 +224,5 @@ const styles = StyleSheet.create({
   helperText: { color: COLORS.textDim, fontSize: 12, marginTop: 8, marginBottom: 12 },
   primaryBtn: { backgroundColor: COLORS.primary, borderRadius: 8, padding: 14, alignItems: 'center' },
   primaryBtnText: { color: '#000', fontWeight: 'bold' },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   label: { color: COLORS.text, fontSize: 15, fontWeight: 'bold' },
-  smallInput: { backgroundColor: COLORS.background, color: COLORS.text, width: 80, textAlign: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 10 },
 });
