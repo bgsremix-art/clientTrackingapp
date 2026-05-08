@@ -90,15 +90,22 @@ jobs:
           xcodebuild -list -workspace "$WORKSPACE"
 
       - name: Build iOS App (Unsigned)
+        shell: bash
         run: |
-          set -o pipefail
+          set -eo pipefail
           cd ios
           WORKSPACE=$(ls -d *.xcworkspace | head -n 1)
           echo "Using workspace: $WORKSPACE"
           
           # Use 'build' instead of 'archive' for better compatibility with unsigned builds
-          # Disable parallel builds to resolve explicit dependency errors (e.g., React-RCTVibration)
-          xcodebuild -workspace "$WORKSPACE" -scheme clientTracking -configuration Release -destination 'generic/platform=iOS' -sdk iphoneos build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" EXPANDED_CODE_SIGN_IDENTITY="" COMPILER_INDEX_STORE_ENABLE=NO ONLY_ACTIVE_ARCH=NO -parallelizeTargets NO -derivedDataPath ./build 2>&1 | tee build.log
+          # Limit jobs to reduce native target scheduling issues in GitHub Actions.
+          xcodebuild -workspace "$WORKSPACE" -scheme clientTracking -configuration Release -destination 'generic/platform=iOS' -sdk iphoneos build CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" EXPANDED_CODE_SIGN_IDENTITY="" COMPILER_INDEX_STORE_ENABLE=NO ONLY_ACTIVE_ARCH=NO -jobs 1 -derivedDataPath ./build 2>&1 | tee build.log
+          XCODE_STATUS=${PIPESTATUS[0]}
+          if [ "$XCODE_STATUS" -ne 0 ]; then
+            echo "Last 100 lines of xcodebuild log:"
+            tail -n 100 build.log || true
+            exit "$XCODE_STATUS"
+          fi
           
           # Package the compiled .app into an .ipa file
           echo "Available .app bundles:"
