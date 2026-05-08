@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, Image, KeyboardAvoidingView, Platform, Alert } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, Image, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { captureRef } from 'react-native-view-shot';
 import { COLORS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useClients } from '../context/ClientContext';
@@ -8,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { uploadImageToFirebase } from '../utils/firebaseStorage';
 import { saveImageToGallery } from '../utils/saveImageToGallery';
 import { calculateBMR, calculateBMI, getHealthyWeightRange, calculateEstimatedWeeks } from '../utils/bmrEngine';
+import { getSafeFileName, saveClientProgressPdf, saveImageFile, shareClientProgressPdf, shareImageFile } from '../utils/pdfExport';
 
 export default function ClientDetailScreen({ route, navigation }: any) {
    const { clientId } = route.params;
@@ -22,7 +24,11 @@ export default function ClientDetailScreen({ route, navigation }: any) {
    const [newWeight, setNewWeight] = useState('');
    const [recordPhotoUris, setRecordPhotoUris] = useState<string[]>([]);
    const [isSaving, setIsSaving] = useState(false);
+   const [isSharingPdf, setIsSharingPdf] = useState(false);
+   const [isCapturingReport, setIsCapturingReport] = useState(false);
+   const [reportOptionsVisible, setReportOptionsVisible] = useState(false);
    const [activeImage, setActiveImage] = useState<string | null>(null);
+   const progressReportRef = useRef<View>(null);
 
    // Config States
    const [localModifier, setLocalModifier] = useState(client?.customCalorieModifier?.toString() || '');
@@ -74,6 +80,112 @@ export default function ClientDetailScreen({ route, navigation }: any) {
    let estimatedWeeksRaw = latestWeight ? calculateEstimatedWeeks(latestWeight.currentWeightKG, targetW, calorieDelta) : 'N/A';
    let estimatedWeeksDisplay = estimatedWeeksRaw === '∞' ? t('maintainingStatus') : `${estimatedWeeksRaw} ${t('weeks')}`;
    if (estimatedWeeksRaw === 0) estimatedWeeksDisplay = t('goalReached');
+   const attendedCount = attendance.filter(a => a.clientId === client.id && a.attended).length;
+   const dateLocale = settings.language === 'km' ? 'km-KH' : 'en-GB';
+   const generatedDate = new Date().toLocaleDateString(dateLocale, { day: 'numeric', month: 'short', year: 'numeric' });
+   const oldestWeight = history.length > 0 ? history[history.length - 1].currentWeightKG : null;
+   const weightChange = latestWeight && oldestWeight !== null ? Number((latestWeight.currentWeightKG - oldestWeight).toFixed(1)) : null;
+   const weightChangeText = weightChange === null ? 'N/A' : `${weightChange > 0 ? '+' : ''}${weightChange} kg`;
+   const displayGoal = client.goal === 'Lose Weight' ? t('loseWeight') : client.goal === 'Maintain Weight' ? t('maintainWeight') : client.goal === 'Gain Muscle' ? t('gainMuscle') : t('gainWeight');
+
+   const getReportPdfLabels = () => ({
+         generated: t('reportGeneratedLabel'),
+         dateLocale,
+         generatedBy: t('reportGeneratedBy'),
+         client: t('clientName'),
+         name: t('clientName'),
+         goal: t('goal'),
+         ageGender: `${t('age')} / ${t('gender')}`,
+         height: t('height'),
+         latestWeight: t('latestWeight'),
+         targetWeight: t('targetWeight'),
+         healthyRange: t('standardWeight'),
+         estimatedTime: t('estimatedTime'),
+         attendance: t('attendanceTitle'),
+         sessionsTracked: t('sessions'),
+         progressHistory: t('progressHistory'),
+         date: t('reportDate'),
+         weight: t('reportWeight'),
+         notes: t('notes'),
+         noProgressRecords: t('noRecords'),
+         reportSummary: t('reportSummary'),
+         clientProgressReport: t('progressReportTitle'),
+      });
+
+   const getProgressPdfParams = () => ({
+         client: { ...client, goal: displayGoal },
+         records: history,
+         attendance: attendance.filter(a => a.clientId === client.id),
+         targetWeight: targetW,
+         healthyMin: min,
+         healthyMax: max,
+         estimatedWeeks: estimatedWeeksDisplay,
+         labels: getReportPdfLabels(),
+   });
+
+   const handleShareProgressPdf = async () => {
+      setIsSharingPdf(true);
+      try {
+         await shareClientProgressPdf(getProgressPdfParams());
+      } finally {
+         setIsSharingPdf(false);
+      }
+   };
+
+   const handleSaveProgressPdf = async () => {
+      setIsSharingPdf(true);
+      try {
+         await saveClientProgressPdf(getProgressPdfParams());
+      } finally {
+         setIsSharingPdf(false);
+      }
+   };
+
+   const prepareReportImageCapture = async () => {
+      setIsCapturingReport(true);
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+   };
+
+   const handleShareProgressImage = async () => {
+      if (!progressReportRef.current) return;
+      setIsSharingPdf(true);
+      try {
+         await prepareReportImageCapture();
+         const uri = await captureRef(progressReportRef.current, {
+            format: 'jpg',
+            quality: 0.92,
+         });
+         await shareImageFile(uri, `${getSafeFileName(client.name, 'progress-report')}.jpg`);
+      } catch (error: any) {
+         Alert.alert('Image Error', error.message || 'Failed to create image.');
+      } finally {
+         setIsCapturingReport(false);
+         setIsSharingPdf(false);
+      }
+   };
+
+   const handleSaveProgressImage = async () => {
+      if (!progressReportRef.current) return;
+      setIsSharingPdf(true);
+      try {
+         await prepareReportImageCapture();
+         const uri = await captureRef(progressReportRef.current, {
+            format: 'jpg',
+            quality: 0.92,
+         });
+         await saveImageFile(uri, `${getSafeFileName(client.name, 'progress-report')}.jpg`);
+      } catch (error: any) {
+         Alert.alert('Image Error', error.message || 'Failed to save image.');
+      } finally {
+         setIsCapturingReport(false);
+         setIsSharingPdf(false);
+      }
+   };
+
+   const runReportAction = async (action: () => Promise<void>) => {
+      setReportOptionsVisible(false);
+      await action();
+   };
 
    const handleSaveWeight = async () => {
       const w = parseFloat(newWeight);
@@ -152,6 +264,13 @@ export default function ClientDetailScreen({ route, navigation }: any) {
             <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color={COLORS.text} /></TouchableOpacity>
             <Text style={styles.headerTitle}>{t('clientDetailsTitle')}</Text>
             <View style={{ flexDirection: 'row', gap: 16 }}>
+               <TouchableOpacity onPress={() => setReportOptionsVisible(true)} disabled={isSharingPdf}>
+                  {isSharingPdf ? (
+                     <ActivityIndicator color={COLORS.primary} />
+                  ) : (
+                     <Ionicons name="document-text-outline" size={24} color={COLORS.primary} />
+                  )}
+               </TouchableOpacity>
                <TouchableOpacity onPress={() => {
                   setLocalModifier(client.customCalorieModifier?.toString() || '');
                   updateKGFromModifier(client.customCalorieModifier?.toString() || '');
@@ -165,53 +284,122 @@ export default function ClientDetailScreen({ route, navigation }: any) {
             </View>
           </View>
 
-         <View style={styles.profileHeader}>
-            <TouchableOpacity style={styles.avatarCircle} onPress={() => client.imageUri && setActiveImage(client.imageUri)}>
-               {client.imageUri ? <Image source={{ uri: client.imageUri }} style={{ width: 76, height: 76, borderRadius: 38 }} /> : <Ionicons name="person" size={40} color={COLORS.textDim} />}
-            </TouchableOpacity>
-            <View style={styles.profileInfo}>
-               <Text style={styles.clientName}>{client.name}</Text>
-               <Text style={styles.clientSub}>{t('goal')}: {client.goal === 'Lose Weight' ? t('loseWeight') : client.goal === 'Maintain Weight' ? t('maintainWeight') : client.goal === 'Gain Muscle' ? t('gainMuscle') : t('gainWeight')}</Text>
-               <Text style={styles.clientSub}>{t('age')}: {client.age} | {client.gender === 'Male' ? t('male') : t('female')}</Text>
-               <Text style={styles.clientSub}>{t('height')}: {client.heightCM} cm</Text>
+         <View ref={progressReportRef} collapsable={false} style={styles.captureArea}>
+         {isCapturingReport ? (
+            <View style={styles.reportSheet}>
+               <View style={styles.reportHeader}>
+                  <View>
+                     <Text style={styles.reportKicker}>{t('reportBrand')}</Text>
+                     <Text style={styles.reportTitle}>{t('progressReportTitle')}</Text>
+                     <Text style={styles.reportSubtle}>{t('reportPreparedFor')} {client.name}</Text>
+                  </View>
+                  <View style={styles.reportDateBlock}>
+                     <Text style={styles.reportDateLabel}>{t('reportDate')}</Text>
+                     <Text style={styles.reportDateText}>{generatedDate}</Text>
+                  </View>
+               </View>
+
+               <View style={styles.reportClientRow}>
+                  {client.imageUri ? (
+                     <Image source={{ uri: client.imageUri }} style={styles.reportAvatar} />
+                  ) : (
+                     <View style={styles.reportAvatarFallback}>
+                        <Ionicons name="person" size={34} color={COLORS.textDim} />
+                     </View>
+                  )}
+                  <View style={styles.reportClientInfo}>
+                     <Text style={styles.reportClientName}>{client.name}</Text>
+                     <Text style={styles.reportSubtle}>{t('age')}: {client.age}  |  {client.gender === 'Male' ? t('male') : t('female')}  |  {t('height')}: {client.heightCM} cm</Text>
+                     <Text style={styles.reportGoalLine}>{t('goal')}: {displayGoal}</Text>
+                  </View>
+               </View>
+
+               <Text style={styles.reportSectionTitle}>{t('reportSummary')}</Text>
+               <View style={styles.reportGrid}>
+                  <View style={styles.reportMetric}><Text style={styles.reportLabel}>{t('latestWeight')}</Text><Text style={styles.reportValue}>{latestWeight ? latestWeight.currentWeightKG + ' kg' : 'N/A'}</Text></View>
+                  <View style={styles.reportMetric}><Text style={styles.reportLabel}>BMI</Text><Text style={styles.reportValue}>{latestWeight ? calculateBMI(latestWeight.currentWeightKG, client.heightCM) : 'N/A'}</Text></View>
+                  <View style={styles.reportMetric}><Text style={styles.reportLabel}>{t('targetWeight')}</Text><Text style={styles.reportValue}>{targetW} kg</Text></View>
+                  <View style={styles.reportMetric}><Text style={styles.reportLabel}>{t('reportChange')}</Text><Text style={styles.reportValue}>{weightChangeText}</Text></View>
+               </View>
+
+               <View style={styles.reportHighlightRow}>
+                  <View style={styles.reportHighlight}><Text style={styles.reportLabel}>{t('estimatedTime')}</Text><Text style={styles.reportValueAccent}>{estimatedWeeksDisplay}</Text></View>
+                  <View style={styles.reportHighlight}><Text style={styles.reportLabel}>{t('attendanceTitle')}</Text><Text style={styles.reportValueAccent}>{attendedCount} {t('sessions')}</Text></View>
+               </View>
+
+               <Text style={styles.reportRangeText}>{t('standardWeight')}: {min} - {max} kg</Text>
+
+               <Text style={styles.reportSectionTitle}>{t('progressHistory')}</Text>
+               <View style={styles.reportTable}>
+                  <View style={styles.reportTableHeader}>
+                     <Text style={[styles.reportTh, { flex: 1.3 }]}>{t('reportDate')}</Text>
+                     <Text style={styles.reportTh}>{t('reportWeight')}</Text>
+                     <Text style={styles.reportTh}>BMI</Text>
+                  </View>
+                  {history.length === 0 ? (
+                     <Text style={styles.reportEmpty}>{t('noRecords')}</Text>
+                  ) : history.slice(0, 8).map(h => (
+                     <View key={h.id} style={styles.reportTableRow}>
+                        <Text style={[styles.reportTd, { flex: 1.3 }]}>{new Date(h.date).toLocaleDateString(dateLocale, { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+                        <Text style={styles.reportTd}>{h.currentWeightKG} kg</Text>
+                        <Text style={styles.reportTd}>{h.bmi || calculateBMI(h.currentWeightKG, client.heightCM)}</Text>
+                     </View>
+                  ))}
+               </View>
+               <Text style={styles.reportFooter}>{t('reportGeneratedBy')}</Text>
             </View>
-         </View>
-
-         <View style={styles.statsCard}>
-            <Text style={styles.statsText}>{t('latestWeight')}: {latestWeight ? latestWeight.currentWeightKG + ' kg' : 'N/A'}</Text>
-            <Text style={styles.statsText}>BMI: {latestWeight ? calculateBMI(latestWeight.currentWeightKG, client.heightCM) : 'N/A'}</Text>
-            <Text style={styles.statsText}>{t('targetWeight')}: {targetW} kg</Text>
-            <Text style={styles.statsText}>{t('standardWeight')}: {min} - {max} kg</Text>
-            <Text style={styles.statsText}>{t('estimatedTime')}: <Text style={{ color: COLORS.primary, fontWeight: 'bold' }}>{estimatedWeeksDisplay}</Text></Text>
-         </View>
-
-          <TouchableOpacity style={styles.attendanceRow} onPress={() => navigation.navigate('Attendance', { clientId: client.id })}>
-             <View style={styles.attendanceInfo}>
-                <Ionicons name="calendar" size={24} color={COLORS.primary} />
-                <View style={{ marginLeft: 12 }}>
-                   <Text style={styles.attendanceLabel}>{t('attendanceTitle')}</Text>
-                   <Text style={styles.attendanceSub}>{attendance.filter(a => a.clientId === client.id && a.attended).length} sessions tracked</Text>
-                </View>
-             </View>
-             <Ionicons name="chevron-forward" size={24} color={COLORS.textDim} />
-          </TouchableOpacity>
-
-         <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{t('progressHistory')}</Text>
-            <TouchableOpacity onPress={() => setModalVisible(true)}>
-               <Text style={styles.addRecordText}>{t('addWeight')}</Text>
-            </TouchableOpacity>
-         </View>
-
-         <View style={styles.historyContainer}>
-            {history.length === 0 ? <Text style={styles.emptyText}>{t('noRecords')}</Text> : history.map(h => (
-               <TouchableOpacity key={h.id} style={styles.historyRow} onPress={() => navigation.navigate('ProgressRecord', { recordId: h.id })}>
-                  <Text style={styles.historyText}>{new Date(h.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}: {h.currentWeightKG} kg</Text>
-                  {h.photoUris && h.photoUris.length > 0 && <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}><Ionicons name="camera" size={16} color={COLORS.primary} /><Text style={{ color: COLORS.primary, fontSize: 12, marginLeft: 4 }}>{h.photoUris.length}</Text></View>}
-                  <View style={{ flex: 1 }} />
-                  <Ionicons name="chevron-forward" size={20} color={COLORS.textDim} />
+         ) : (
+            <>
+            <View style={styles.profileHeader}>
+               <TouchableOpacity style={styles.avatarCircle} onPress={() => client.imageUri && setActiveImage(client.imageUri)}>
+                  {client.imageUri ? <Image source={{ uri: client.imageUri }} style={{ width: 76, height: 76, borderRadius: 38 }} /> : <Ionicons name="person" size={40} color={COLORS.textDim} />}
                </TouchableOpacity>
-            ))}
+               <View style={styles.profileInfo}>
+                  <Text style={styles.clientName}>{client.name}</Text>
+                  <Text style={styles.clientSub}>{t('goal')}: {displayGoal}</Text>
+                  <Text style={styles.clientSub}>{t('age')}: {client.age} | {client.gender === 'Male' ? t('male') : t('female')}</Text>
+                  <Text style={styles.clientSub}>{t('height')}: {client.heightCM} cm</Text>
+               </View>
+            </View>
+
+            <View style={styles.statsCard}>
+               <Text style={styles.statsText}>{t('latestWeight')}: {latestWeight ? latestWeight.currentWeightKG + ' kg' : 'N/A'}</Text>
+               <Text style={styles.statsText}>BMI: {latestWeight ? calculateBMI(latestWeight.currentWeightKG, client.heightCM) : 'N/A'}</Text>
+               <Text style={styles.statsText}>{t('targetWeight')}: {targetW} kg</Text>
+               <Text style={styles.statsText}>{t('standardWeight')}: {min} - {max} kg</Text>
+               <Text style={styles.statsText}>{t('estimatedTime')}: <Text style={{ color: COLORS.primary, fontWeight: 'bold' }}>{estimatedWeeksDisplay}</Text></Text>
+            </View>
+
+             <TouchableOpacity style={styles.attendanceRow} onPress={() => navigation.navigate('Attendance', { clientId: client.id })}>
+                <View style={styles.attendanceInfo}>
+                   <Ionicons name="calendar" size={24} color={COLORS.primary} />
+                   <View style={{ marginLeft: 12 }}>
+                      <Text style={styles.attendanceLabel}>{t('attendanceTitle')}</Text>
+                      <Text style={styles.attendanceSub}>{attendedCount} {t('sessions')}</Text>
+                   </View>
+                </View>
+                <Ionicons name="chevron-forward" size={24} color={COLORS.textDim} />
+             </TouchableOpacity>
+
+            <View style={styles.sectionHeader}>
+               <Text style={styles.sectionTitle}>{t('progressHistory')}</Text>
+               <TouchableOpacity onPress={() => setModalVisible(true)}>
+                  <Text style={styles.addRecordText}>{t('addWeight')}</Text>
+               </TouchableOpacity>
+            </View>
+
+            <View style={styles.historyContainer}>
+               {history.length === 0 ? <Text style={styles.emptyText}>{t('noRecords')}</Text> : history.map(h => (
+                  <TouchableOpacity key={h.id} style={styles.historyRow} onPress={() => navigation.navigate('ProgressRecord', { recordId: h.id })}>
+                     <Text style={styles.historyText}>{new Date(h.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}: {h.currentWeightKG} kg</Text>
+                     {h.photoUris && h.photoUris.length > 0 && <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}><Ionicons name="camera" size={16} color={COLORS.primary} /><Text style={{ color: COLORS.primary, fontSize: 12, marginLeft: 4 }}>{h.photoUris.length}</Text></View>}
+                     <View style={{ flex: 1 }} />
+                     <Ionicons name="chevron-forward" size={20} color={COLORS.textDim} />
+                  </TouchableOpacity>
+               ))}
+            </View>
+            </>
+         )}
          </View>
 
          <View style={styles.mealPlanContainer}>
@@ -234,6 +422,41 @@ export default function ClientDetailScreen({ route, navigation }: any) {
             <Ionicons name="trash-outline" size={20} color="#ff4444" style={{marginRight: 8}}/>
             <Text style={styles.deleteBtnText}>{t('deleteClient')}</Text>
          </TouchableOpacity>
+
+         {/* Report Options Modal */}
+         <Modal visible={reportOptionsVisible} transparent animationType="fade" onRequestClose={() => setReportOptionsVisible(false)}>
+            <View style={styles.modalBg}>
+               <View style={styles.modalCard}>
+                  <View style={styles.modalHeaderRow}>
+                     <Text style={styles.modalTitle}>{t('reportShareClient')}</Text>
+                     <TouchableOpacity onPress={() => setReportOptionsVisible(false)}>
+                        <Ionicons name="close" size={24} color={COLORS.textDim} />
+                     </TouchableOpacity>
+                  </View>
+
+                  <TouchableOpacity style={styles.reportActionBtn} onPress={() => runReportAction(handleShareProgressImage)}>
+                     <Ionicons name="image-outline" size={20} color="#000" />
+                     <Text style={styles.reportActionText}>{t('reportShareImage')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.reportActionBtn} onPress={() => runReportAction(handleSaveProgressImage)}>
+                     <Ionicons name="download-outline" size={20} color="#000" />
+                     <Text style={styles.reportActionText}>{t('reportSaveImage')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.reportActionBtn} onPress={() => runReportAction(handleShareProgressPdf)}>
+                     <Ionicons name="document-text-outline" size={20} color="#000" />
+                     <Text style={styles.reportActionText}>{t('reportSharePdf')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.reportActionBtn} onPress={() => runReportAction(handleSaveProgressPdf)}>
+                     <Ionicons name="folder-outline" size={20} color="#000" />
+                     <Text style={styles.reportActionText}>{t('reportSavePdf')}</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity style={styles.reportCancelBtn} onPress={() => setReportOptionsVisible(false)}>
+                     <Text style={styles.reportCancelText}>{t('cancel')}</Text>
+                  </TouchableOpacity>
+               </View>
+            </View>
+         </Modal>
 
          {/* Weight Modal */}
          <Modal visible={modalVisible} transparent animationType="slide">
@@ -348,6 +571,37 @@ const styles = StyleSheet.create({
    container: { flex: 1, backgroundColor: COLORS.background },
    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 60, paddingBottom: 16 },
    headerTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
+   captureArea: { backgroundColor: COLORS.background, paddingBottom: 1 },
+   reportSheet: { backgroundColor: '#ffffff', padding: 24, marginHorizontal: 0, marginBottom: 18 },
+   reportHeader: { borderBottomWidth: 2, borderBottomColor: '#d9e7f7', paddingBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
+   reportKicker: { color: '#2b6cb0', fontSize: 11, fontWeight: 'bold', marginBottom: 6 },
+   reportTitle: { color: '#172033', fontSize: 28, fontWeight: 'bold', marginBottom: 4 },
+   reportSubtle: { color: '#667085', fontSize: 12 },
+   reportDateBlock: { alignItems: 'flex-end', paddingTop: 3 },
+   reportDateLabel: { color: '#98a2b3', fontSize: 9, fontWeight: 'bold', marginBottom: 4 },
+   reportDateText: { color: '#172033', fontSize: 12, fontWeight: 'bold' },
+   reportClientRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#f8fafc', padding: 14, borderLeftWidth: 4, borderLeftColor: '#2b6cb0', marginBottom: 18 },
+   reportAvatar: { width: 58, height: 58, borderRadius: 29, marginRight: 14 },
+   reportAvatarFallback: { width: 58, height: 58, borderRadius: 29, marginRight: 14, backgroundColor: '#eaf1f8', alignItems: 'center', justifyContent: 'center' },
+   reportClientInfo: { flex: 1 },
+   reportClientName: { color: '#172033', fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
+   reportGoalLine: { color: '#2b6cb0', fontSize: 12, fontWeight: 'bold', marginTop: 4 },
+   reportSectionTitle: { color: '#172033', fontSize: 14, fontWeight: 'bold', marginBottom: 10 },
+   reportGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginBottom: 10 },
+   reportMetric: { width: '48.7%', backgroundColor: '#ffffff', padding: 12, borderWidth: 1, borderColor: '#d0d7de' },
+   reportHighlightRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+   reportHighlight: { flex: 1, backgroundColor: '#eef6ff', padding: 12, borderWidth: 1, borderColor: '#bfdbfe' },
+   reportLabel: { color: '#667085', fontSize: 10, fontWeight: 'bold', marginBottom: 5, textTransform: 'uppercase' },
+   reportValue: { color: '#172033', fontSize: 18, fontWeight: 'bold' },
+   reportValueAccent: { color: '#1d4ed8', fontSize: 16, fontWeight: 'bold' },
+   reportRangeText: { color: '#667085', fontSize: 12, marginBottom: 18 },
+   reportTable: { backgroundColor: '#ffffff', borderWidth: 1, borderColor: '#d0d7de', overflow: 'hidden', marginBottom: 16 },
+   reportTableHeader: { flexDirection: 'row', backgroundColor: '#172033', paddingVertical: 9, paddingHorizontal: 12 },
+   reportTableRow: { flexDirection: 'row', paddingVertical: 10, paddingHorizontal: 12, borderTopWidth: 1, borderTopColor: '#e5e7eb' },
+   reportTh: { flex: 1, color: '#ffffff', fontSize: 10, fontWeight: 'bold', textTransform: 'uppercase' },
+   reportTd: { flex: 1, color: '#172033', fontSize: 12, fontWeight: '600' },
+   reportEmpty: { color: '#667085', fontSize: 13, textAlign: 'center', padding: 18 },
+   reportFooter: { color: '#98a2b3', fontSize: 10, textAlign: 'right' },
    profileHeader: { flexDirection: 'row', paddingHorizontal: 24, marginBottom: 24, alignItems: 'center' },
    avatarCircle: { width: 80, height: 80, borderRadius: 40, borderColor: COLORS.primary, borderWidth: 2, alignItems: 'center', justifyContent: 'center', backgroundColor: COLORS.surface, marginRight: 16 },
    profileInfo: { flex: 1 },
@@ -380,6 +634,10 @@ const styles = StyleSheet.create({
    input: { backgroundColor: COLORS.background, color: COLORS.text, padding: 16, borderRadius: 8, fontSize: 18, marginBottom: 24, borderWidth: 1, borderColor: COLORS.border },
    modalActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 8 },
    modalSaveBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+   reportActionBtn: { backgroundColor: COLORS.primary, padding: 14, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 10 },
+   reportActionText: { color: '#000', fontSize: 15, fontWeight: 'bold' },
+   reportCancelBtn: { padding: 14, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: COLORS.border, marginTop: 4 },
+   reportCancelText: { color: COLORS.textDim, fontSize: 15, fontWeight: 'bold' },
    attendanceRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: COLORS.surface, marginHorizontal: 16, padding: 16, borderRadius: 12, marginBottom: 24, borderWidth: 1, borderColor: COLORS.border },
    attendanceInfo: { flexDirection: 'row', alignItems: 'center' },
    attendanceLabel: { color: COLORS.text, fontSize: 16, fontWeight: 'bold' },
