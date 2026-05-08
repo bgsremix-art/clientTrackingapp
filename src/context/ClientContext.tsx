@@ -43,6 +43,21 @@ type ClientContextType = {
 
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
 
+const normalizeEmails = (emails: string[]) => Array.from(new Set(
+  emails.map(email => email.trim().toLowerCase()).filter(Boolean)
+));
+
+const getAdminEmailsFromData = (data: any) => {
+  const emails: string[] = [];
+
+  if (Array.isArray(data.adminEmails)) emails.push(...data.adminEmails);
+  if (Array.isArray(data.emails)) emails.push(...data.emails);
+  if (typeof data.adminEmail === 'string') emails.push(data.adminEmail);
+  if (typeof data.email === 'string') emails.push(data.email);
+
+  return normalizeEmails(emails);
+};
+
 const defaultIngredients: FoodLibraryItem[] = [
   // Proteins
   { id: 'p1', category: 'Protein', name: 'សាច់ទ្រូងមាន់ (Chicken Breast)', proteinBase: 23, carbBase: 0, fatBase: 1.5, calsBase: 110, icon: '🍗' },
@@ -114,12 +129,16 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [adminUsers, setAdminUsers] = useState<UserProfile[]>([]);
   const [adminAppConfig, setAdminAppConfig] = useState<AdminAppConfig>({ trialDays: 3 });
+  const [startAdminEmails, setStartAdminEmails] = useState<string[]>([]);
   const [bakongConfig, setBakongConfig] = useState<BakongAdminConfig>({});
 
-  const fallbackAdminEmails = ADMIN_EMAILS.map(email => email.toLowerCase());
-  const firebaseAdminEmails = (adminAppConfig.adminEmails || []).map(email => email.toLowerCase());
-  const emailIsAdmin = user?.email ? [...fallbackAdminEmails, ...firebaseAdminEmails].includes(user.email.toLowerCase()) : false;
+  const fallbackAdminEmails = normalizeEmails(ADMIN_EMAILS);
+  const configAdminEmails = normalizeEmails(adminAppConfig.adminEmails || []);
+  const firebaseAdminEmails = normalizeEmails([...configAdminEmails, ...startAdminEmails]);
+  const allAdminEmails = normalizeEmails([...fallbackAdminEmails, ...firebaseAdminEmails]);
+  const emailIsAdmin = user?.email ? allAdminEmails.includes(user.email.toLowerCase()) : false;
   const isAdmin = emailIsAdmin || userProfile?.role === 'admin';
+  const mergedAdminAppConfig = { ...adminAppConfig, adminEmails: firebaseAdminEmails };
 
   useEffect(() => {
     if (!user) {
@@ -130,6 +149,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
       setSettingsLoaded(false);
       setUserProfile(null);
       setAdminUsers([]);
+      setStartAdminEmails([]);
       return;
     }
 
@@ -250,6 +270,26 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
     };
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubStart = onSnapshot(collection(db, 'start'), (snap) => {
+      const emails = snap.docs.flatMap(document => getAdminEmailsFromData(document.data()));
+      setStartAdminEmails(normalizeEmails(emails));
+    }, (error) => {
+      console.log('Error fetching start admin emails:', error);
+      setStartAdminEmails([]);
+    });
+
+    return unsubStart;
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || !emailIsAdmin) return;
+
+    setDoc(doc(db, 'users', user.uid), { role: 'admin' }, { merge: true });
+  }, [user, emailIsAdmin]);
+
   const cleanData = (obj: any) => {
     const newObj = { ...obj };
     Object.keys(newObj).forEach(key => {
@@ -325,19 +365,6 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
 
     return unsubAdminApp;
   }, [user]);
-
-  useEffect(() => {
-    if (!isAdmin) return;
-    const existing = (adminAppConfig.adminEmails || []).map(email => email.toLowerCase());
-    const missingFallbackEmails = ADMIN_EMAILS.filter(email => !existing.includes(email.toLowerCase()));
-
-    if (missingFallbackEmails.length > 0) {
-      setDoc(doc(db, 'admin_config', 'app'), {
-        adminEmails: [...(adminAppConfig.adminEmails || []), ...missingFallbackEmails],
-        trialDays: adminAppConfig.trialDays || 3,
-      }, { merge: true });
-    }
-  }, [isAdmin, adminAppConfig.adminEmails, adminAppConfig.trialDays]);
 
   const assertAdmin = () => {
     if (!isAdmin || !user) {
@@ -425,7 +452,18 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
 
   const updateAdminAppConfig = async (config: AdminAppConfig) => {
     assertAdmin();
-    await setDoc(doc(db, 'admin_config', 'app'), config, { merge: true });
+    const nextConfig = {
+      ...config,
+      adminEmails: normalizeEmails(config.adminEmails || []),
+    };
+    await Promise.all([
+      setDoc(doc(db, 'admin_config', 'app'), nextConfig, { merge: true }),
+      setDoc(doc(db, 'start', 'admin'), {
+        adminEmails: nextConfig.adminEmails,
+        updatedAt: new Date().toISOString(),
+        updatedBy: user?.uid,
+      }, { merge: true }),
+    ]);
   };
 
   const updateBakongToken = async (token: string) => {
@@ -462,7 +500,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <ClientContext.Provider value={{ clients, records, ingredients, attendance, settings, settingsLoaded, userProfile, isAdmin, adminUsers, adminAppConfig, bakongConfig, t, addClient, editClient, deleteClient, addRecord, editRecord, deleteRecord, addIngredient, editIngredient, deleteIngredient, restoreDefaultIngredients, updateSettings, refreshAdminUsers, updateUserProfile, updateUserSubscription, deleteUserData, updateAdminAppConfig, updateBakongToken, toggleAttendance, deleteAttendance }}>
+    <ClientContext.Provider value={{ clients, records, ingredients, attendance, settings, settingsLoaded, userProfile, isAdmin, adminUsers, adminAppConfig: mergedAdminAppConfig, bakongConfig, t, addClient, editClient, deleteClient, addRecord, editRecord, deleteRecord, addIngredient, editIngredient, deleteIngredient, restoreDefaultIngredients, updateSettings, refreshAdminUsers, updateUserProfile, updateUserSubscription, deleteUserData, updateAdminAppConfig, updateBakongToken, toggleAttendance, deleteAttendance }}>
       {children}
     </ClientContext.Provider>
   );
