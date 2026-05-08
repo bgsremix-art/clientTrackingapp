@@ -14,7 +14,11 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.clientTracking"
+      "bundleIdentifier": "com.anonymous.clientTracking",
+      "infoPlist": {
+        "NSPhotoLibraryUsageDescription": "This app needs access to your photo library to save QR codes for payments.",
+        "NSPhotoLibraryAddUsageDescription": "This app needs permission to add QR code images to your photo library."
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -28,6 +32,16 @@
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Allow $(PRODUCT_NAME) to access your photos.",
+          "savePhotosPermission": "Allow $(PRODUCT_NAME) to save photos.",
+          "isStandAlone": true
+        }
+      ]
+    ],
     "extra": {
       "eas": {
         "projectId": "9cb5d30d-75ca-4544-b5bc-067f4d531d1e"

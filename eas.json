@@ -3,8 +3,18 @@
     "preview": {
       "android": {
         "buildType": "apk"
+      },
+      "ios": {
+        "simulator": true
       }
     },
-    "production": {}
+    "production": {
+      "ios": {
+        "bundleIdentifier": "com.anonymous.clientTracking"
+      },
+      "android": {
+        "package": "com.anonymous.clientTracking"
+      }
+    }
   }
 }
