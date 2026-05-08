@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
@@ -51,6 +51,7 @@ export default function AdminScreen() {
   const [trialDays, setTrialDays] = useState((adminAppConfig.trialDays || TRIAL_DAYS).toString());
   const [saving, setSaving] = useState(false);
   const [query, setQuery] = useState('');
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
 
   useEffect(() => {
     setBakongToken(bakongConfig.bakongToken || '');
@@ -164,13 +165,14 @@ export default function AdminScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <View style={styles.headerRow}>
-        <Text style={styles.headerTitle}>Admin</Text>
-        <TouchableOpacity style={styles.iconBtn} onPress={refreshAdminUsers} disabled={saving}>
-          <Ionicons name="refresh" size={20} color={COLORS.primary} />
-        </TouchableOpacity>
-      </View>
+    <View style={styles.container}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <View style={styles.headerRow}>
+          <Text style={styles.headerTitle}>Admin</Text>
+          <TouchableOpacity style={styles.iconBtn} onPress={refreshAdminUsers} disabled={saving}>
+            <Ionicons name="refresh" size={20} color={COLORS.primary} />
+          </TouchableOpacity>
+        </View>
 
       {saving && (
         <View style={styles.savingBar}>
@@ -239,7 +241,7 @@ export default function AdminScreen() {
         {filteredUsers.map((profile) => {
           const access = getUserAccessLabel(profile, adminAppConfig.trialDays || TRIAL_DAYS);
           return (
-            <View key={profile.uid} style={styles.userCard}>
+            <TouchableOpacity key={profile.uid} style={styles.userCard} onPress={() => setSelectedUser(profile)} activeOpacity={0.85}>
               <View style={styles.userTopRow}>
                 <View style={{ flex: 1 }}>
                   <Text style={styles.userEmail} numberOfLines={1}>{getDisplayEmail(profile)}</Text>
@@ -252,23 +254,53 @@ export default function AdminScreen() {
                 </View>
               </View>
 
-              <View style={styles.actions}>
-                <AdminAction label="+1M" onPress={() => extendSubscription(profile, 1)} />
-                <AdminAction label="+3M" onPress={() => extendSubscription(profile, 3)} />
-                <AdminAction label="Reset Trial" onPress={() => resetTrial(profile)} />
-                <AdminAction label="Expire" danger onPress={() => expireUser(profile)} />
-                <AdminAction
-                  label={profile.blocked ? 'Unblock' : 'Block'}
-                  danger={!profile.blocked}
-                  onPress={() => runAdminAction(() => updateUserProfile(profile.uid, { blocked: !profile.blocked }), 'User access updated.')}
-                />
-                <AdminAction label="Delete Data" danger onPress={() => confirmDeleteData(profile)} />
+              <View style={styles.manageRow}>
+                <Text style={styles.tapHint}>Tap user box to manage</Text>
+                <View style={styles.manageBtn}>
+                  <Text style={styles.manageBtnText}>Manage</Text>
+                  <Ionicons name="chevron-forward" size={16} color="#000" />
+                </View>
               </View>
-            </View>
+            </TouchableOpacity>
           );
         })}
       </View>
-    </ScrollView>
+
+      </ScrollView>
+
+      <Modal visible={!!selectedUser} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            {selectedUser && (
+              <>
+                <View style={styles.modalHeader}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.modalTitle}>{getDisplayEmail(selectedUser)}</Text>
+                    <Text style={styles.userMeta}>Clients: {selectedUser.clientCount || 0} | Records: {selectedUser.recordCount || 0}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => setSelectedUser(null)}>
+                    <Ionicons name="close" size={26} color={COLORS.text} />
+                  </TouchableOpacity>
+                </View>
+
+                <View style={styles.actions}>
+                  <AdminAction label="+1 Month" onPress={() => extendSubscription(selectedUser, 1)} />
+                  <AdminAction label="+3 Months" onPress={() => extendSubscription(selectedUser, 3)} />
+                  <AdminAction label="Reset Trial" onPress={() => resetTrial(selectedUser)} />
+                  <AdminAction label="Expire User" danger onPress={() => expireUser(selectedUser)} />
+                  <AdminAction
+                    label={selectedUser.blocked ? 'Unblock User' : 'Block User'}
+                    danger={!selectedUser.blocked}
+                    onPress={() => runAdminAction(() => updateUserProfile(selectedUser.uid, { blocked: !selectedUser.blocked }), 'User access updated.')}
+                  />
+                  <AdminAction label="Delete User Data" danger onPress={() => confirmDeleteData(selectedUser)} />
+                </View>
+              </>
+            )}
+          </View>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
@@ -322,9 +354,17 @@ const styles = StyleSheet.create({
   userMeta: { color: COLORS.textDim, fontSize: 11, marginBottom: 2 },
   badge: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
   badgeText: { fontSize: 11, fontWeight: 'bold' },
+  manageRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 12 },
+  tapHint: { color: COLORS.textDim, fontSize: 12 },
+  manageBtn: { backgroundColor: COLORS.primary, borderRadius: 6, paddingVertical: 8, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 4 },
+  manageBtnText: { color: '#000', fontSize: 12, fontWeight: 'bold' },
   actions: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 12 },
   actionBtn: { backgroundColor: COLORS.surfaceLight, borderRadius: 6, borderWidth: 1, borderColor: COLORS.border, paddingVertical: 8, paddingHorizontal: 10 },
   actionText: { color: COLORS.text, fontSize: 12, fontWeight: 'bold' },
   dangerAction: { borderColor: COLORS.error },
   dangerText: { color: COLORS.error },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.75)', justifyContent: 'flex-end' },
+  modalCard: { backgroundColor: COLORS.surface, borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, borderWidth: 1, borderColor: COLORS.border },
+  modalHeader: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 12 },
+  modalTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold', marginBottom: 4 },
 });
