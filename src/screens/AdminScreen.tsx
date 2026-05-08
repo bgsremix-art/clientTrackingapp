@@ -179,17 +179,6 @@ export default function AdminScreen({ navigation }: any) {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Ionicons name="people-outline" size={22} color={COLORS.primary} />
-          <Text style={styles.cardTitle}>Users</Text>
-        </View>
-        <TouchableOpacity style={styles.openUsersBtn} onPress={() => openUsers('all', 'All Users')}>
-          <Text style={styles.openUsersText}>Open Users Data</Text>
-          <Ionicons name="chevron-forward" size={18} color="#000" />
-        </TouchableOpacity>
-      </View>
-
       </ScrollView>
     </View>
   );
@@ -232,6 +221,4 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   label: { color: COLORS.text, fontSize: 15, fontWeight: 'bold' },
   smallInput: { backgroundColor: COLORS.background, color: COLORS.text, width: 80, textAlign: 'center', borderWidth: 1, borderColor: COLORS.border, borderRadius: 8, padding: 10 },
-  openUsersBtn: { backgroundColor: COLORS.primary, borderRadius: 8, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
-  openUsersText: { color: '#000', fontWeight: 'bold' },
 });
