@@ -21,8 +21,7 @@ jobs:
 
       - name: Generate iOS Folder (Expo Prebuild)
         run: |
-          rm -rf ios
-          npx expo prebuild --platform ios --no-install
+          npx expo prebuild --platform ios --no-install --clean
         env:
           CI: true
 
@@ -32,12 +31,12 @@ jobs:
             echo "::error::The 'ios' folder was not generated. Expo prebuild failed."
             exit 1
           fi
-          ls -R ios
 
       - name: Install Pods
         run: |
           cd ios
-          pod install --repo-update
+          pod repo update
+          pod install
 
       - name: List Xcode Schemes (Debug)
         run: |
