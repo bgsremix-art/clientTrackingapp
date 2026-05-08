@@ -14,6 +14,8 @@ const formatDate = (value?: string) => {
   return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
 };
 
+const getDisplayEmail = (profile: UserProfile) => profile.email || 'Email not saved yet';
+
 const getUserAccessLabel = (profile: UserProfile, trialDays: number) => {
   if (profile.blocked) return { label: 'Blocked', color: COLORS.error };
   const status = getAccessStatus({
@@ -61,7 +63,7 @@ export default function AdminScreen() {
   const filteredUsers = useMemo(() => {
     const term = query.trim().toLowerCase();
     if (!term) return adminUsers;
-    return adminUsers.filter((profile) => profile.email.toLowerCase().includes(term) || profile.uid.toLowerCase().includes(term));
+    return adminUsers.filter((profile) => profile.email.toLowerCase().includes(term));
   }, [adminUsers, query]);
 
   const stats = useMemo(() => {
@@ -103,14 +105,14 @@ export default function AdminScreen() {
     nextExpiry.setMonth(nextExpiry.getMonth() + months);
     runAdminAction(
       () => updateUserSubscription(profile.uid, nextExpiry.toISOString(), profile.trialStartedAt),
-      `Subscription extended for ${profile.email || profile.uid}.`
+      `Subscription extended for ${getDisplayEmail(profile)}.`
     );
   };
 
   const resetTrial = (profile: UserProfile) => {
     runAdminAction(
       () => updateUserSubscription(profile.uid, '', new Date().toISOString()),
-      `Trial reset for ${profile.email || profile.uid}.`
+      `Trial reset for ${getDisplayEmail(profile)}.`
     );
   };
 
@@ -119,12 +121,12 @@ export default function AdminScreen() {
     const expiredTrialStart = new Date(Date.now() - (configuredTrialDays + 1) * 24 * 60 * 60 * 1000).toISOString();
     runAdminAction(
       () => updateUserSubscription(profile.uid, '', expiredTrialStart),
-      `${profile.email || profile.uid} is now expired.`
+      `${getDisplayEmail(profile)} is now expired.`
     );
   };
 
   const confirmDeleteData = (profile: UserProfile) => {
-    Alert.alert('Delete user data', `Delete clients, records, attendance, and ingredients for ${profile.email || profile.uid}?`, [
+    Alert.alert('Delete user data', `Delete clients, records, attendance, and ingredients for ${getDisplayEmail(profile)}?`, [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Delete data',
@@ -229,7 +231,7 @@ export default function AdminScreen() {
           style={styles.searchInput}
           value={query}
           onChangeText={setQuery}
-          placeholder="Search email or uid"
+          placeholder="Search email"
           placeholderTextColor={COLORS.textDim}
           autoCapitalize="none"
         />
@@ -240,7 +242,7 @@ export default function AdminScreen() {
             <View key={profile.uid} style={styles.userCard}>
               <View style={styles.userTopRow}>
                 <View style={{ flex: 1 }}>
-                  <Text style={styles.userEmail} numberOfLines={1}>{profile.email || profile.uid}</Text>
+                  <Text style={styles.userEmail} numberOfLines={1}>{getDisplayEmail(profile)}</Text>
                   <Text style={styles.userMeta}>Last active: {formatDate(profile.lastActiveAt)} | {profile.platform}</Text>
                   <Text style={styles.userMeta}>Trial: {formatDate(profile.trialStartedAt)} | Sub: {formatDate(profile.subscriptionExpiry)}</Text>
                   <Text style={styles.userMeta}>Clients: {profile.clientCount || 0} | Records: {profile.recordCount || 0} | Attendance: {profile.attendanceCount || 0}</Text>
