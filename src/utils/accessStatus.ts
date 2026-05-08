@@ -1,7 +1,7 @@
 import { AppSettings } from '../models/types';
 
 export const TRIAL_DAYS = 3;
-export const FORCE_EXPIRED_ACCESS_FOR_TEST = true;
+export const FORCE_EXPIRED_ACCESS_FOR_TEST = false;
 
 export type AccessStatus =
   | { active: true; type: 'trial' | 'subscription'; days: number }
