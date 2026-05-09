@@ -17,7 +17,8 @@
       "bundleIdentifier": "com.anonymous.clientTracking",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "This app needs access to your photo library so you can choose and save client photos.",
-        "NSPhotoLibraryAddUsageDescription": "This app needs permission to save client photos and payment QR images to your photo library."
+        "NSPhotoLibraryAddUsageDescription": "This app needs permission to save client photos and payment QR images to your photo library.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -27,7 +28,15 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.clientTracking"
+      "package": "com.anonymous.clientTracking",
+      "permissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_AUDIO"
+      ]
     },
     "web": {
       "favicon": "./assets/favicon.png"

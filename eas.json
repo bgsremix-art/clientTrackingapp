@@ -8,7 +8,6 @@
         "simulator": true
       }
     },
-    "production": {
-    }
+    "production": {}
   }
 }
