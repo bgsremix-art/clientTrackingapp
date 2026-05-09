@@ -9,10 +9,11 @@ const getLocalImageUri = async (uri: string) => {
       return uri; // already a local file
     }
 
-    const cleanName = uri.split('?')[0].split('/').pop() || `client-photo-${Date.now()}.jpg`;
-    const hasImageExtension = /\.(jpg|jpeg|png|heic|webp)$/i.test(cleanName);
-    const filename = hasImageExtension ? cleanName : `${cleanName}.jpg`;
-    const fileUri = `${FileSystem.cacheDirectory}${filename}`;
+    const cleanName = uri.split('?')[0].split('/').pop() || 'photo.jpg';
+    const safeName = cleanName.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const hasImageExtension = /\.(jpg|jpeg|png|heic|webp)$/i.test(safeName);
+    const filename = hasImageExtension ? safeName : `${safeName}.jpg`;
+    const fileUri = `${FileSystem.documentDirectory}dl_${Date.now()}_${filename}`;
     
     console.log('Downloading image to:', fileUri);
     const downloadResult = await FileSystem.downloadAsync(uri, fileUri);
