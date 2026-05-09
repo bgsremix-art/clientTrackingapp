@@ -136,6 +136,8 @@ const reportShell = (title: string, body: string, labels = defaultPdfLabels) => 
         ul { padding-left: 18px; margin: 8px 0; }
         li { margin-bottom: 4px; font-size: 13px; }
         .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; color: #777; font-size: 11px; }
+        .profile-row { display: flex; align-items: center; gap: 15px; background: #f8fafc; padding: 12px; border-radius: 8px; margin-bottom: 16px; border: 1px solid #e2e8f0; }
+        .profile-img { width: 60px; height: 60px; border-radius: 30px; object-fit: cover; background: #eee; }
       </style>
     </head>
     <body>
@@ -241,6 +243,19 @@ export const shareImageFile = async (uri: string, fileName: string) => {
   }
 };
 
+const getClientHeaderHtml = (client: any) => {
+  if (!client.imageUri) return '';
+  return `
+    <div class="profile-row">
+      <img src="${client.imageUri}" class="profile-img" />
+      <div>
+        <div style="font-size: 16px; font-weight: bold;">${escapeHtml(client.name)}</div>
+        <div style="font-size: 11px; color: #666;">${escapeHtml(client.goal)}</div>
+      </div>
+    </div>
+  `;
+};
+
 export const shareMealPlanPdf = async (params: {
   client: Partial<Client>;
   mealName: string;
@@ -260,6 +275,7 @@ export const shareMealPlanPdf = async (params: {
 }) => {
   const labels = getPdfLabels(params.labels);
   const body = `
+    ${getClientHeaderHtml(params.client)}
     <h2>${escapeHtml(labels.client)}</h2>
     <div class="grid">
       <div class="box"><div class="label">${escapeHtml(labels.name)}</div><div class="value">${escapeHtml(params.client.name || labels.client)}</div></div>
@@ -299,6 +315,7 @@ export const shareMealPlanPdf = async (params: {
 export const saveMealPlanPdf = async (params: Parameters<typeof shareMealPlanPdf>[0]) => {
   const labels = getPdfLabels(params.labels);
   const body = `
+    ${getClientHeaderHtml(params.client)}
     <h2>${escapeHtml(labels.client)}</h2>
     <div class="grid">
       <div class="box"><div class="label">${escapeHtml(labels.name)}</div><div class="value">${escapeHtml(params.client.name || labels.client)}</div></div>
@@ -357,6 +374,7 @@ export const shareClientProgressPdf = async (params: {
   `).join('');
 
   const body = `
+    ${getClientHeaderHtml(params.client)}
     <h2>${escapeHtml(labels.reportSummary)}</h2>
     <div class="grid">
       <div class="box"><div class="label">${escapeHtml(labels.name)}</div><div class="value">${escapeHtml(params.client.name)}</div></div>
@@ -397,6 +415,7 @@ export const saveClientProgressPdf = async (params: Parameters<typeof shareClien
   `).join('');
 
   const body = `
+    ${getClientHeaderHtml(params.client)}
     <h2>${escapeHtml(labels.reportSummary)}</h2>
     <div class="grid">
       <div class="box"><div class="label">${escapeHtml(labels.name)}</div><div class="value">${escapeHtml(params.client.name)}</div></div>
