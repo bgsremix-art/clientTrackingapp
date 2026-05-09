@@ -408,12 +408,12 @@ export default function ClientDetailScreen({ route, navigation }: any) {
                <Text style={styles.sectionTitle}>{t('generateMealPlanSection')}</Text>
                <Ionicons name="toggle" size={36} color={COLORS.primary} />
             </View>
-            <div style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 24 }}>
-               <div style={{ alignItems: 'center' }}><Text style={styles.emoji}>🥩</Text><Text style={styles.iconLabel}>{t('meat')}</Text></div>
-               <div style={{ alignItems: 'center' }}><Text style={styles.emoji}>🥦</Text><Text style={styles.iconLabel}>{t('vegetables')}</Text></div>
-               <div style={{ alignItems: 'center' }}><Text style={styles.emoji}>🍎</Text><Text style={styles.iconLabel}>{t('fruitsLabel')}</Text></div>
-               <div style={{ alignItems: 'center' }}><Text style={styles.emoji}>🍞</Text><Text style={styles.iconLabel}>{t('carbsLabel')}</Text></div>
-            </div>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 24 }}>
+               <View style={{ alignItems: 'center' }}><Text style={styles.emoji}>🥩</Text><Text style={styles.iconLabel}>{t('meat')}</Text></View>
+               <View style={{ alignItems: 'center' }}><Text style={styles.emoji}>🥦</Text><Text style={styles.iconLabel}>{t('vegetables')}</Text></View>
+               <View style={{ alignItems: 'center' }}><Text style={styles.emoji}>🍎</Text><Text style={styles.iconLabel}>{t('fruitsLabel')}</Text></View>
+               <View style={{ alignItems: 'center' }}><Text style={styles.emoji}>🍞</Text><Text style={styles.iconLabel}>{t('carbsLabel')}</Text></View>
+            </View>
             <TouchableOpacity style={styles.generateBtn} onPress={() => navigation.navigate('GenerateMealPlan', { clientId: client.id })}>
                <Text style={styles.generateBtnText}>{t('generateMealPlanBtn')}</Text>
             </TouchableOpacity>
