@@ -120,21 +120,21 @@ const reportShell = (title: string, body: string, labels = defaultPdfLabels) => 
     <head>
       <meta charset="utf-8" />
       <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #171717; padding: 28px; }
-        .header { border-bottom: 3px solid #ccff00; padding-bottom: 14px; margin-bottom: 20px; }
-        h1 { font-size: 26px; margin: 0 0 6px; }
-        h2 { font-size: 17px; margin: 22px 0 10px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #171717; padding: 20px; line-height: 1.3; }
+        .header { border-bottom: 3px solid #ccff00; padding-bottom: 10px; margin-bottom: 16px; }
+        h1 { font-size: 24px; margin: 0 0 4px; }
+        h2 { font-size: 16px; margin: 16px 0 8px; }
         .muted { color: #666; font-size: 12px; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
-        .box { border: 1px solid #ddd; border-radius: 8px; padding: 12px; }
-        .label { color: #666; font-size: 11px; text-transform: uppercase; margin-bottom: 4px; }
-        .value { font-size: 16px; font-weight: 700; }
-        table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0; }
+        .box { border: 1px solid #ddd; border-radius: 8px; padding: 10px; }
+        .label { color: #666; font-size: 11px; text-transform: uppercase; margin-bottom: 2px; }
+        .value { font-size: 15px; font-weight: 700; }
+        table { width: 100%; border-collapse: collapse; margin-top: 4px; }
         th { background: #f1f1f1; text-align: left; font-size: 12px; }
-        th, td { border: 1px solid #ddd; padding: 8px; font-size: 12px; vertical-align: top; }
-        ul { padding-left: 18px; }
-        li { margin-bottom: 6px; }
-        .footer { margin-top: 28px; padding-top: 12px; border-top: 1px solid #ddd; color: #777; font-size: 11px; }
+        th, td { border: 1px solid #ddd; padding: 6px; font-size: 12px; vertical-align: top; }
+        ul { padding-left: 18px; margin: 8px 0; }
+        li { margin-bottom: 4px; font-size: 13px; }
+        .footer { margin-top: 20px; padding-top: 10px; border-top: 1px solid #ddd; color: #777; font-size: 11px; }
       </style>
     </head>
     <body>

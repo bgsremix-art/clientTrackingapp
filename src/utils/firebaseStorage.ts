@@ -11,11 +11,11 @@ export const uploadImageToFirebase = async (uri: string, userId: string, folder:
       type: 'image/jpeg',
       name: `photo_${Date.now()}.jpg`
     } as any);
-    
+
     // 2. Add your Cloudinary settings here
     const cloudName = 'dscmzagzy'; // <--- REPLACE THIS
     const uploadPreset = 'wpbqkye1'; // <--- REPLACE THIS
-    
+
     data.append('upload_preset', uploadPreset);
     data.append('cloud_name', cloudName);
     data.append('folder', `client_tracking/${userId}/${folder}`);
@@ -30,10 +30,10 @@ export const uploadImageToFirebase = async (uri: string, userId: string, folder:
     });
 
     const result = await response.json();
-    
+
     if (result.error) {
-       console.error("Cloudinary Error:", result.error);
-       throw new Error(result.error.message);
+      console.error("Cloudinary Error:", result.error);
+      throw new Error(result.error.message);
     }
 
     if (result.secure_url) {
