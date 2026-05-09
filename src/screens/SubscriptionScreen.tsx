@@ -9,6 +9,7 @@ import * as Sharing from 'expo-sharing';
 import * as MediaLibrary from 'expo-media-library';
 import KHQRCard from '../components/KHQRCard';
 import { getAccessStatus } from '../utils/accessStatus';
+import { saveImageToGallery } from '../utils/saveImageToGallery';
 
 export default function SubscriptionScreen() {
   const { settings, updateSettings, t } = useClients();
@@ -81,19 +82,15 @@ export default function SubscriptionScreen() {
 
   const handleSaveQRImage = async () => {
     try {
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== 'granted') {
-        Alert.alert("Permission Denied", "We need permission to save the image to your gallery.");
-        return;
-      }
-
       const uri = await captureRef(viewShotRef, {
         format: 'png',
         quality: 1.0,
       });
 
-      await MediaLibrary.saveToLibraryAsync(uri);
-      Alert.alert(t('success'), t('qrSaved') || "QR Image saved to your photos!");
+      const success = await saveImageToGallery(uri);
+      if (success) {
+        Alert.alert(t('success'), t('qrSaved') || "QR Image saved to your photos!");
+      }
     } catch (error) {
       console.error("Save Error:", error);
       Alert.alert("Error", "Failed to save image.");

@@ -5,6 +5,7 @@ import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { AttendanceRecord, Client, ProgressRecord } from '../models/types';
 import { calculateBMI } from './bmrEngine';
+import { saveImageToGallery } from './saveImageToGallery';
 
 const escapeHtml = (value: any) => String(value ?? '')
   .replace(/&/g, '&amp;')
@@ -211,16 +212,10 @@ const sharePdf = async (html: string, fileName: string) => {
 
 export const saveImageFile = async (uri: string, fileName: string) => {
   try {
-    const namedUri = `${FileSystem.cacheDirectory}${fileName}`;
-    await FileSystem.deleteAsync(namedUri, { idempotent: true });
-    await FileSystem.copyAsync({ from: uri, to: namedUri });
-    const { status } = await MediaLibrary.requestPermissionsAsync(true);
-    if (status !== 'granted') {
-      Alert.alert('Permission needed', 'Please allow photo access to save the image.');
-      return;
+    const success = await saveImageToGallery(uri);
+    if (success) {
+      Alert.alert('Saved', `${fileName} saved to your photos.`);
     }
-    await MediaLibrary.saveToLibraryAsync(namedUri);
-    Alert.alert('Saved', `${fileName} saved to your photos.`);
   } catch (error: any) {
     Alert.alert('Image Error', error.message || 'Failed to save image.');
   }
