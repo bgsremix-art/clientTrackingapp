@@ -91,9 +91,9 @@ export default function SubscriptionScreen() {
       if (success) {
         Alert.alert(t('success'), t('qrSaved') || "QR Image saved to your photos!");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Save Error:", error);
-      Alert.alert("Error", "Failed to save image.");
+      Alert.alert("Error", `Failed to save: ${error.message || 'Unknown error'}`);
     }
   };
 

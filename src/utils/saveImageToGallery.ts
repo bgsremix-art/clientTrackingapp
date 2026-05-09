@@ -17,43 +17,44 @@ const getLocalImageUri = async (uri: string) => {
     console.log('Downloading image to:', fileUri);
     const downloadResult = await FileSystem.downloadAsync(uri, fileUri);
     return downloadResult.uri;
-  } catch (error) {
+  } catch (error: any) {
     console.error('Download failed:', error);
+    Alert.alert('Prep Error', `Failed to download: ${error.message}`);
     return null;
   }
 };
 
 export const saveImageToGallery = async (uri: string) => {
   try {
-    // Request permission (writeOnly: true is safer for iOS)
-    const { status, granted, canAskAgain } = await MediaLibrary.requestPermissionsAsync(true);
+    console.log('Requesting permissions...');
+    const { status, granted } = await MediaLibrary.requestPermissionsAsync(true);
     
     if (status !== 'granted' && !granted) {
-      Alert.alert('Permission Denied', 'Please enable photo library access in your iPhone settings.');
+      Alert.alert('Permission Denied', `Status: ${status}. Please enable photo access in Settings.`);
       return false;
     }
 
+    console.log('Getting local URI for:', uri);
     const localUri = await getLocalImageUri(uri);
-    if (!localUri) {
-      Alert.alert('Error', 'Failed to prepare the image for saving.');
-      return false;
-    }
+    if (!localUri) return false;
 
-    // Attempt 1: Create Asset and Album (Best for organization)
+    console.log('Attempting to save asset:', localUri);
+    
+    // Attempt 1: Direct save (Most compatible for signed IPAs)
     try {
+      await MediaLibrary.saveToLibraryAsync(localUri);
+      return true;
+    } catch (saveError: any) {
+      console.log('Direct save failed, trying Album method:', saveError.message);
+      
+      // Attempt 2: Asset + Album method
       const asset = await MediaLibrary.createAssetAsync(localUri);
       await MediaLibrary.createAlbumAsync('ClientTracking', asset, false);
       return true;
-    } catch (albumError) {
-      console.log('Album creation failed, trying direct save:', albumError);
-      
-      // Attempt 2: Direct save to library (Fallback)
-      await MediaLibrary.saveToLibraryAsync(localUri);
-      return true;
     }
   } catch (error: any) {
-    console.error('Save to gallery error:', error);
-    Alert.alert('Save Error', error.message || 'An unknown error occurred while saving.');
+    console.error('Final Save Error:', error);
+    Alert.alert('System Error', `iOS Error: ${error.message || 'Unknown'}`);
     return false;
   }
 };
