@@ -17,7 +17,7 @@ const getLocalImageUri = async (uri: string) => {
 };
 
 export const saveImageToGallery = async (uri: string) => {
-  const { status } = await MediaLibrary.requestPermissionsAsync(true);
+  const { status } = await MediaLibrary.requestPermissionsAsync();
 
   if (status !== 'granted') {
     return false;
