@@ -143,7 +143,8 @@ export default function ClientDetailScreen({ route, navigation }: any) {
 
    const prepareReportImageCapture = async () => {
       setIsCapturingReport(true);
-      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      // Increased delay to allow profile photo to load from network
+      await new Promise(resolve => setTimeout(resolve, 800));
    };
 
    const handleShareProgressImage = async () => {
@@ -282,7 +283,8 @@ export default function ClientDetailScreen({ route, navigation }: any) {
             </View>
           </View>
 
-         <View ref={progressReportRef} collapsable={false} style={styles.captureArea}>
+         <View style={styles.captureArea}>
+         <View ref={progressReportRef} collapsable={false}>
          {isCapturingReport ? (
             <View style={styles.reportSheet}>
                <View style={styles.reportHeader}>
@@ -399,18 +401,19 @@ export default function ClientDetailScreen({ route, navigation }: any) {
             </>
          )}
          </View>
+         </View>
 
          <View style={styles.mealPlanContainer}>
             <View style={styles.mealHeaderRow}>
                <Text style={styles.sectionTitle}>{t('generateMealPlanSection')}</Text>
                <Ionicons name="toggle" size={36} color={COLORS.primary} />
             </View>
-            <View style={styles.iconsRow}>
-               <View style={styles.iconItem}><Text style={styles.emoji}>🥩</Text><Text style={styles.iconLabel}>{t('meat')}</Text></View>
-               <View style={styles.iconItem}><Text style={styles.emoji}>🥦</Text><Text style={styles.iconLabel}>{t('vegetables')}</Text></View>
-               <View style={styles.iconItem}><Text style={styles.emoji}>🍎</Text><Text style={styles.iconLabel}>{t('fruitsLabel')}</Text></View>
-               <View style={styles.iconItem}><Text style={styles.emoji}>🍞</Text><Text style={styles.iconLabel}>{t('carbsLabel')}</Text></View>
-            </View>
+            <div style={{ flexDirection: 'row', justifyContent: 'space-around', marginBottom: 24 }}>
+               <div style={{ alignItems: 'center' }}><Text style={styles.emoji}>🥩</Text><Text style={styles.iconLabel}>{t('meat')}</Text></div>
+               <div style={{ alignItems: 'center' }}><Text style={styles.emoji}>🥦</Text><Text style={styles.iconLabel}>{t('vegetables')}</Text></div>
+               <div style={{ alignItems: 'center' }}><Text style={styles.emoji}>🍎</Text><Text style={styles.iconLabel}>{t('fruitsLabel')}</Text></div>
+               <div style={{ alignItems: 'center' }}><Text style={styles.emoji}>🍞</Text><Text style={styles.iconLabel}>{t('carbsLabel')}</Text></div>
+            </div>
             <TouchableOpacity style={styles.generateBtn} onPress={() => navigation.navigate('GenerateMealPlan', { clientId: client.id })}>
                <Text style={styles.generateBtnText}>{t('generateMealPlanBtn')}</Text>
             </TouchableOpacity>
