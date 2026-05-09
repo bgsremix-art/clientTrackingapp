@@ -232,12 +232,10 @@ export default function ClientDetailScreen({ route, navigation }: any) {
 
    const handleSaveToGallery = async (uri: string) => {
       try {
-         const saved = await saveImageToGallery(uri);
-         if (!saved) {
-            Alert.alert('Permission needed', 'Please allow access to your photos to save images.');
-            return;
+         const success = await saveImageToGallery(uri);
+         if (success) {
+            Alert.alert(t('success'), t('saveToGallery'));
          }
-         Alert.alert(t('success'), t('saveToGallery'));
       } catch (error) {
          console.error(error);
          Alert.alert('Error', 'Failed to save photo.');
