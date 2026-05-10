@@ -196,14 +196,20 @@ export default function AdminScreen({ navigation }: any) {
         <View style={styles.storageRow}>
           <View>
             <Text style={styles.storageValue}>{formatStorage(firestoreStats.usedBytes)}</Text>
-            <Text style={styles.storageLabel}>Used</Text>
+            <Text style={styles.storageLabel}>Used Storage</Text>
           </View>
           <View style={styles.storageRight}>
             <Text style={styles.storageValue}>{formatStorage(firestoreStats.freeBytes)}</Text>
-            <Text style={styles.storageLabel}>Free of {firestoreStats.quotaGb} GB</Text>
+            <Text style={styles.storageLabel}>Free of {firestoreStats.quotaGb} GB Storage</Text>
           </View>
         </View>
-        <Text style={styles.helperText}>Estimated from {firestoreStats.docCount} Firestore documents.</Text>
+        <View style={{ marginTop: 12, backgroundColor: COLORS.background, padding: 12, borderRadius: 8 }}>
+           <Text style={[styles.helperText, { marginVertical: 0, fontWeight: 'bold' }]}>Firebase Free Tier Limits:</Text>
+           <Text style={[styles.helperText, { marginVertical: 2 }]}>• Storage: 5 GB total (1 GB download/day)</Text>
+           <Text style={[styles.helperText, { marginVertical: 2 }]}>• Database: 50,000 reads & 20,000 writes per day</Text>
+           <Text style={[styles.helperText, { marginVertical: 2 }]}>• Active Users: 50,000 per month</Text>
+           <Text style={[styles.helperText, { marginTop: 8, color: COLORS.primary }]}>Estimated from {firestoreStats.docCount} total documents.</Text>
+        </View>
       </View>
 
       <View style={styles.card}>
@@ -217,17 +223,20 @@ export default function AdminScreen({ navigation }: any) {
         <View style={styles.storageRow}>
           <View>
             <Text style={styles.storageValue}>{formatStorage(cloudinaryStats.usedBytes)}</Text>
-            <Text style={styles.storageLabel}>Used</Text>
+            <Text style={styles.storageLabel}>Used Estimate</Text>
           </View>
           <View style={styles.storageRight}>
             <Text style={styles.storageValue}>{formatStorage(cloudinaryStats.freeBytes)}</Text>
             <Text style={styles.storageLabel}>Free of {cloudinaryStats.quotaGb} GB</Text>
           </View>
         </View>
-        <Text style={styles.helperText}>
-          Tracked uploads: {cloudinaryStats.uploadCount}
-          {cloudinaryStats.untrackedPhotoCount > 0 ? ` | Old photos without size data: ${cloudinaryStats.untrackedPhotoCount}` : ''}
-        </Text>
+        <View style={{ marginTop: 12, backgroundColor: COLORS.background, padding: 12, borderRadius: 8 }}>
+           <Text style={[styles.helperText, { marginVertical: 0, fontWeight: 'bold' }]}>Cloudinary Free Tier Limits:</Text>
+           <Text style={[styles.helperText, { marginVertical: 2 }]}>• 25 Credits per month</Text>
+           <Text style={[styles.helperText, { marginVertical: 2 }]}>• 1 Credit = 1 GB Storage OR 1 GB Bandwidth</Text>
+           <Text style={[styles.helperText, { marginVertical: 2 }]}>• Total Tracked Uploads: {cloudinaryStats.uploadCount}</Text>
+           {cloudinaryStats.untrackedPhotoCount > 0 && <Text style={[styles.helperText, { marginVertical: 2 }]}>• Old photos missing size data: {cloudinaryStats.untrackedPhotoCount}</Text>}
+        </View>
       </View>
 
       <View style={styles.card}>
