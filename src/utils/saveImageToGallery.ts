@@ -16,8 +16,31 @@ const getLocalImageUri = async (uri: string) => {
     const fileUri = `${FileSystem.documentDirectory}dl_${Date.now()}_${filename}`;
     
     console.log('Downloading image to:', fileUri);
-    const downloadResult = await FileSystem.downloadAsync(uri, fileUri);
-    return downloadResult.uri;
+    
+    // Instead of FileSystem.downloadAsync (which fails in ESign due to background task entitlement issues),
+    // we use a standard foreground fetch and write the file manually.
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64data = reader.result as string;
+          const base64 = base64data.split(',')[1]; // remove the data:image/...;base64, prefix
+          
+          await FileSystem.writeAsStringAsync(fileUri, base64, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+          console.log('Successfully wrote file to', fileUri);
+          resolve(fileUri);
+        } catch (err) {
+          reject(err);
+        }
+      };
+      reader.onerror = () => reject(new Error('Failed to read image blob'));
+      reader.readAsDataURL(blob);
+    });
   } catch (error: any) {
     console.error('Download failed:', error);
     Alert.alert('Prep Error', `Failed to download: ${error.message}`);
