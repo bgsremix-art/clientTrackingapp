@@ -6,5 +6,7 @@ export const COLORS = {
   text: '#ffffff',
   textDim: '#a0a0a5',
   border: '#3a3a3c',
-  error: '#ff453a'
+  error: '#ff453a',
+  warning: '#ff9800', // Orange for warning state
+  success: '#4CAF50', // Green for success/healthy state
 };

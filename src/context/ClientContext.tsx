@@ -77,7 +77,7 @@ const defaultIngredients: FoodLibraryItem[] = [
   { id: 'p6', category: 'Protein', name: 'ត្រីសមុទ្រ (Sea Fish)', proteinBase: 20, carbBase: 0, fatBase: 1.7, calsBase: 96, icon: '🐟' },
   { id: 'p7', category: 'Protein', name: 'ត្រីសាម៉ុង (Salmon)', proteinBase: 20, carbBase: 0, fatBase: 13, calsBase: 208, icon: '🍣' },
   { id: 'p8', category: 'Protein', name: 'បង្គា (Shrimp)', proteinBase: 24, carbBase: 0.2, fatBase: 0.3, calsBase: 99, icon: '🦐' },
-  
+
   // Carbs
   { id: 'c1', category: 'Carbs', name: 'បាយស (White Rice)', proteinBase: 3, carbBase: 28, fatBase: 0, calsBase: 130, icon: '🍚' },
   { id: 'c2', category: 'Carbs', name: 'បាយសម្រូប (Brown Rice)', proteinBase: 2.6, carbBase: 23, fatBase: 0.9, calsBase: 111, icon: '🍛' },
@@ -85,7 +85,7 @@ const defaultIngredients: FoodLibraryItem[] = [
 
   { id: 'c5', category: 'Carbs', name: 'ដំឡូងជ្វា (Sweet Potato)', proteinBase: 1.6, carbBase: 20, fatBase: 0, calsBase: 86, icon: '🍠' },
   { id: 'c6', category: 'Carbs', name: 'នំប៉័ង (Baguette)', proteinBase: 9, carbBase: 50, fatBase: 3, calsBase: 270, icon: '🥖' },
-  
+
   // Veggies
   { id: 'v1', category: 'Veggies', name: 'ត្រកួន (Morning Glory)', proteinBase: 2.6, carbBase: 3, fatBase: 0.2, calsBase: 19, icon: '🌿' },
   { id: 'v2', category: 'Veggies', name: 'ស្ពៃក្តោប (Cabbage)', proteinBase: 1.3, carbBase: 6, fatBase: 0.1, calsBase: 25, icon: '🥬' },
@@ -111,7 +111,7 @@ const defaultIngredients: FoodLibraryItem[] = [
   { id: 'v22', category: 'Veggies', name: 'ខាត់ណាផ្កា (Cauliflower)', proteinBase: 1.9, carbBase: 5, fatBase: 0.3, calsBase: 25, icon: '🥦' },
   { id: 'v23', category: 'Veggies', name: 'ពោតបារាំង (Okra)', proteinBase: 1.9, carbBase: 7, fatBase: 0.2, calsBase: 33, icon: '🌿' },
   { id: 'v24', category: 'Veggies', name: 'ផ្សិត (Mushrooms)', proteinBase: 3, carbBase: 3.3, fatBase: 0.3, calsBase: 22, icon: '🍄' },
-  
+
   // Fruits
   { id: 'fr1', category: 'Fruits', name: 'ចេក (Banana)', proteinBase: 1.1, carbBase: 23, fatBase: 0.3, calsBase: 89, icon: '🍌' },
   { id: 'fr2', category: 'Fruits', name: 'ស្វាយទុំ (Ripe Mango)', proteinBase: 0.8, carbBase: 15, fatBase: 0.4, calsBase: 60, icon: '🥭' },
@@ -129,7 +129,7 @@ const defaultIngredients: FoodLibraryItem[] = [
 
 export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   const { user } = useAuth();
-  
+
   const [clients, setClients] = useState<Client[]>([]);
   const [records, setRecords] = useState<ProgressRecord[]>([]);
   const [ingredients, setIngredients] = useState<FoodLibraryItem[]>([]);
@@ -218,7 +218,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
     const unsubSettings = onSnapshot(doc(db, 'users', uid, 'settings', 'app_settings'), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data() as AppSettings;
-        
+
         // Initialize trial only after email verification.
         if (!data.trialStartedAt && shouldStartTrial) {
           const initializedSettings = {
@@ -242,10 +242,10 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         }
         setSettingsLoaded(true);
       } else {
-        const initialSettings: AppSettings = { 
-          loseWeightCals: -500, 
-          gainMuscleCals: 300, 
-          gainWeightCals: 500, 
+        const initialSettings: AppSettings = {
+          loseWeightCals: -500,
+          gainMuscleCals: 300,
+          gainWeightCals: 500,
           language: 'en'
         };
         if (shouldStartTrial) {
@@ -331,14 +331,14 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   const addIngredient = (i: FoodLibraryItem) => { if (user) setDoc(doc(db, 'users', user.uid, 'ingredients', i.id), i); };
   const editIngredient = (i: FoodLibraryItem) => { if (user) setDoc(doc(db, 'users', user.uid, 'ingredients', i.id), i); };
   const deleteIngredient = (id: string) => { if (user) deleteDoc(doc(db, 'users', user.uid, 'ingredients', id)); };
-  
+
   const restoreDefaultIngredients = () => {
     if (!user) return;
     defaultIngredients.forEach(ing => {
       setDoc(doc(db, 'users', user.uid, 'ingredients', ing.id), ing);
     });
   };
-  
+
   const updateSettings = (s: AppSettings) => {
     if (!user) return;
     setDoc(doc(db, 'users', user.uid, 'settings', 'app_settings'), s);
@@ -460,6 +460,8 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         storageBytes,
         storageUploadCount: storageUploadsSnap.size,
         untrackedPhotoCount,
+        dailyReads: (clientsSnap.size * 10) + (recordsSnap.size * 2) + ingredientsSnap.size + attendanceSnap.size + 20,
+        dailyWrites: Math.max(1, Math.floor(recordsSnap.size / 7) + Math.floor(attendanceSnap.size / 7) + 5),
       } as UserProfile;
     }));
     setAdminUsers(profiles.filter((profile): profile is UserProfile => !!profile).sort((a, b) => new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()));
@@ -543,9 +545,9 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const t = (key: string) => {
-     const lang = settings?.language || 'en';
-     const dictionary = translations[lang as keyof typeof translations] || translations.en;
-     return (dictionary as any)[key] || key;
+    const lang = settings?.language || 'en';
+    const dictionary = translations[lang as keyof typeof translations] || translations.en;
+    return (dictionary as any)[key] || key;
   };
 
   return (

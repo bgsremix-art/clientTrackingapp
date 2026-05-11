@@ -114,6 +114,35 @@ export default function AdminScreen({ navigation }: any) {
     };
   }, [adminUsers, adminAppConfig.cloudinaryStorageQuotaGb]);
 
+  const usageStats = useMemo(() => {
+    const dailyReads = adminUsers.reduce((total, profile) => total + (profile.dailyReads || 0), 0);
+    const dailyWrites = adminUsers.reduce((total, profile) => total + (profile.dailyWrites || 0), 0);
+    
+    const maxReads = 50000;
+    const maxWrites = 20000;
+
+    return {
+      reads: dailyReads,
+      writes: dailyWrites,
+      readsPercent: Math.min((dailyReads / maxReads) * 100, 100),
+      writesPercent: Math.min((dailyWrites / maxWrites) * 100, 100),
+      maxReads,
+      maxWrites,
+    };
+  }, [adminUsers]);
+
+  const getBarColor = (percent: number) => {
+    if (percent >= 90) return COLORS.error;
+    if (percent >= 70) return COLORS.warning;
+    return COLORS.success;
+  };
+
+  const isDangerZone = 
+    firestoreStats.usedPercent >= 80 || 
+    cloudinaryStats.usedPercent >= 80 || 
+    usageStats.readsPercent >= 80 || 
+    usageStats.writesPercent >= 80;
+
   const runAdminAction = async (action: () => Promise<void>, successMessage: string) => {
     setSaving(true);
     try {
@@ -165,6 +194,13 @@ export default function AdminScreen({ navigation }: any) {
         </View>
       )}
 
+      {isDangerZone && (
+        <View style={{ backgroundColor: COLORS.error, padding: 12, borderRadius: 8, marginBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Ionicons name="warning" size={24} color="#fff" />
+          <Text style={{ color: '#fff', fontWeight: 'bold', flex: 1 }}>Warning: One or more of your free tier limits is over 80%. Please check usage below.</Text>
+        </View>
+      )}
+
       <View style={styles.statGrid}>
         <StatCard label="Users" value={stats.total} onPress={() => openUsers('all', 'All Users')} />
         <StatCard label="Today" value={stats.activeToday} onPress={() => openUsers('today', 'Active Today')} />
@@ -188,10 +224,10 @@ export default function AdminScreen({ navigation }: any) {
       <View style={styles.card}>
         <View style={styles.cardHeader}>
           <Ionicons name="server-outline" size={22} color={COLORS.primary} />
-          <Text style={styles.cardTitle}>Firestore Database</Text>
+          <Text style={styles.cardTitle}>Firestore Database Storage</Text>
         </View>
         <View style={styles.storageMeter}>
-          <View style={[styles.storageFill, { width: `${firestoreStats.usedPercent}%` }]} />
+          <View style={[styles.storageFill, { width: `${firestoreStats.usedPercent}%`, backgroundColor: getBarColor(firestoreStats.usedPercent) }]} />
         </View>
         <View style={styles.storageRow}>
           <View>
@@ -214,11 +250,51 @@ export default function AdminScreen({ navigation }: any) {
 
       <View style={styles.card}>
         <View style={styles.cardHeader}>
+          <Ionicons name="flash-outline" size={22} color={COLORS.primary} />
+          <Text style={styles.cardTitle}>Firestore Daily Est. Reads</Text>
+        </View>
+        <View style={styles.storageMeter}>
+          <View style={[styles.storageFill, { width: `${usageStats.readsPercent}%`, backgroundColor: getBarColor(usageStats.readsPercent) }]} />
+        </View>
+        <View style={styles.storageRow}>
+          <View>
+            <Text style={styles.storageValue}>{usageStats.reads.toLocaleString()}</Text>
+            <Text style={styles.storageLabel}>Estimated Reads</Text>
+          </View>
+          <View style={styles.storageRight}>
+            <Text style={styles.storageValue}>50k</Text>
+            <Text style={styles.storageLabel}>Free Limit / Day</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
+          <Ionicons name="create-outline" size={22} color={COLORS.primary} />
+          <Text style={styles.cardTitle}>Firestore Daily Est. Writes</Text>
+        </View>
+        <View style={styles.storageMeter}>
+          <View style={[styles.storageFill, { width: `${usageStats.writesPercent}%`, backgroundColor: getBarColor(usageStats.writesPercent) }]} />
+        </View>
+        <View style={styles.storageRow}>
+          <View>
+            <Text style={styles.storageValue}>{usageStats.writes.toLocaleString()}</Text>
+            <Text style={styles.storageLabel}>Estimated Writes</Text>
+          </View>
+          <View style={styles.storageRight}>
+            <Text style={styles.storageValue}>20k</Text>
+            <Text style={styles.storageLabel}>Free Limit / Day</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.card}>
+        <View style={styles.cardHeader}>
           <Ionicons name="images-outline" size={22} color={COLORS.primary} />
           <Text style={styles.cardTitle}>Cloudinary Storage</Text>
         </View>
         <View style={styles.storageMeter}>
-          <View style={[styles.storageFill, { width: `${cloudinaryStats.usedPercent}%` }]} />
+          <View style={[styles.storageFill, { width: `${cloudinaryStats.usedPercent}%`, backgroundColor: getBarColor(cloudinaryStats.usedPercent) }]} />
         </View>
         <View style={styles.storageRow}>
           <View>

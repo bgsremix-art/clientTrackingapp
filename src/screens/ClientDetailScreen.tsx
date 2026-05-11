@@ -73,10 +73,10 @@ export default function ClientDetailScreen({ route, navigation }: any) {
       targetW = Math.round(max + 5);
    }
 
-   const calorieDelta = (client.customCalorieModifier !== undefined && client.customCalorieModifier !== null) 
-      ? client.customCalorieModifier 
+   const calorieDelta = (client.customCalorieModifier !== undefined && client.customCalorieModifier !== null)
+      ? client.customCalorieModifier
       : (client.goal === 'Gain Weight' ? settings.gainWeightCals : client.goal === 'Gain Muscle' ? settings.gainMuscleCals : client.goal === 'Lose Weight' ? settings.loseWeightCals : 0);
-   
+
    let estimatedWeeksRaw = latestWeight ? calculateEstimatedWeeks(latestWeight.currentWeightKG, targetW, calorieDelta) : 'N/A';
    let estimatedWeeksDisplay = estimatedWeeksRaw === '∞' ? t('maintainingStatus') : `${estimatedWeeksRaw} ${t('weeks')}`;
    if (estimatedWeeksRaw === 0) estimatedWeeksDisplay = t('goalReached');
@@ -89,38 +89,38 @@ export default function ClientDetailScreen({ route, navigation }: any) {
    const displayGoal = client.goal === 'Lose Weight' ? t('loseWeight') : client.goal === 'Maintain Weight' ? t('maintainWeight') : client.goal === 'Gain Muscle' ? t('gainMuscle') : t('gainWeight');
 
    const getReportPdfLabels = () => ({
-         generated: t('reportGeneratedLabel'),
-         dateLocale,
-         generatedBy: t('reportGeneratedBy'),
-         client: t('clientName'),
-         name: t('clientName'),
-         goal: t('goal'),
-         ageGender: `${t('age')} / ${t('gender')}`,
-         height: t('height'),
-         latestWeight: t('latestWeight'),
-         targetWeight: t('targetWeight'),
-         healthyRange: t('standardWeight'),
-         estimatedTime: t('estimatedTime'),
-         attendance: t('attendanceTitle'),
-         sessionsTracked: t('sessions'),
-         progressHistory: t('progressHistory'),
-         date: t('reportDate'),
-         weight: t('reportWeight'),
-         notes: t('notes'),
-         noProgressRecords: t('noRecords'),
-         reportSummary: t('reportSummary'),
-         clientProgressReport: t('progressReportTitle'),
-      });
+      generated: t('reportGeneratedLabel'),
+      dateLocale,
+      generatedBy: t('reportGeneratedBy'),
+      client: t('clientName'),
+      name: t('clientName'),
+      goal: t('goal'),
+      ageGender: `${t('age')} / ${t('gender')}`,
+      height: t('height'),
+      latestWeight: t('latestWeight'),
+      targetWeight: t('targetWeight'),
+      healthyRange: t('standardWeight'),
+      estimatedTime: t('estimatedTime'),
+      attendance: t('attendanceTitle'),
+      sessionsTracked: t('sessions'),
+      progressHistory: t('progressHistory'),
+      date: t('reportDate'),
+      weight: t('reportWeight'),
+      notes: t('notes'),
+      noProgressRecords: t('noRecords'),
+      reportSummary: t('reportSummary'),
+      clientProgressReport: t('progressReportTitle'),
+   });
 
    const getProgressPdfParams = () => ({
-         client: { ...client, goal: displayGoal },
-         records: history,
-         attendance: attendance.filter(a => a.clientId === client.id),
-         targetWeight: targetW,
-         healthyMin: min,
-         healthyMax: max,
-         estimatedWeeks: estimatedWeeksDisplay,
-         labels: getReportPdfLabels(),
+      client: { ...client, goal: displayGoal },
+      records: history,
+      attendance: attendance.filter(a => a.clientId === client.id),
+      targetWeight: targetW,
+      healthyMin: min,
+      healthyMax: max,
+      estimatedWeeks: estimatedWeeksDisplay,
+      labels: getReportPdfLabels(),
    });
 
    const handleShareProgressPdf = async () => {
@@ -191,36 +191,36 @@ export default function ClientDetailScreen({ route, navigation }: any) {
    const handleSaveWeight = async () => {
       const w = parseFloat(newWeight);
       if (!w || !user) return;
-      
+
       setIsSaving(true);
       const uploadedUris: string[] = [];
-      
+
       try {
-        for (const uri of recordPhotoUris) {
-          if (uri.startsWith('file://')) {
-            const uploadedUrl = await uploadImageToFirebase(uri, user.uid, 'progress_photos');
-            uploadedUris.push(uploadedUrl);
-          } else {
-            uploadedUris.push(uri);
-          }
-        }
+         for (const uri of recordPhotoUris) {
+            if (uri.startsWith('file://')) {
+               const uploadedUrl = await uploadImageToFirebase(uri, user.uid, 'progress_photos');
+               uploadedUris.push(uploadedUrl);
+            } else {
+               uploadedUris.push(uri);
+            }
+         }
       } catch (e) {
-        console.error("Failed to upload progress photos", e);
-        Alert.alert("Upload Error", "Some photos failed to upload to the cloud.");
+         console.error("Failed to upload progress photos", e);
+         Alert.alert("Upload Error", "Some photos failed to upload to the cloud.");
       }
 
-      const newRecord = { 
-        id: Date.now().toString(), 
-        clientId: client.id, 
-        date: new Date().toISOString(), 
-        currentWeightKG: w, 
-        bmi: calculateBMI(w, client.heightCM), 
-        notes: '', 
-        photoUris: uploadedUris.length > 0 ? uploadedUris : [] 
+      const newRecord = {
+         id: Date.now().toString(),
+         clientId: client.id,
+         date: new Date().toISOString(),
+         currentWeightKG: w,
+         bmi: calculateBMI(w, client.heightCM),
+         notes: '',
+         photoUris: uploadedUris.length > 0 ? uploadedUris : []
       };
-      
+
       addRecord(newRecord);
-      
+
       setNewWeight(''); setRecordPhotoUris([]); setModalVisible(false); setIsSaving(false);
    };
    const pickRecordImage = async () => {
@@ -249,17 +249,19 @@ export default function ClientDetailScreen({ route, navigation }: any) {
          t('deleteClientConfirm'),
          [
             { text: t('cancel'), style: 'cancel' },
-            { text: t('delete'), style: 'destructive', onPress: () => {
-               deleteClient(client.id);
-               navigation.goBack();
-            }}
+            {
+               text: t('delete'), style: 'destructive', onPress: () => {
+                  deleteClient(client.id);
+                  navigation.goBack();
+               }
+            }
          ]
       );
    }
 
    return (
       <ScrollView style={styles.container}>
-          <View style={styles.header}>
+         <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color={COLORS.text} /></TouchableOpacity>
             <Text style={styles.headerTitle}>{t('clientDetailsTitle')}</Text>
             <View style={{ flexDirection: 'row', gap: 16 }}>
@@ -281,126 +283,126 @@ export default function ClientDetailScreen({ route, navigation }: any) {
                   <Ionicons name="pencil" size={24} color={COLORS.text} />
                </TouchableOpacity>
             </View>
-          </View>
+         </View>
 
          <View style={styles.captureArea}>
-         <View ref={progressReportRef} collapsable={false}>
-         {isCapturingReport ? (
-            <View style={styles.reportSheet}>
-               <View style={styles.reportHeader}>
-                  <View>
-                     <Text style={styles.reportKicker}>{t('reportBrand')}</Text>
-                     <Text style={styles.reportTitle}>{t('progressReportTitle')}</Text>
-                     <Text style={styles.reportSubtle}>{t('reportPreparedFor')} {client.name}</Text>
-                  </View>
-                  <View style={styles.reportDateBlock}>
-                     <Text style={styles.reportDateLabel}>{t('reportDate')}</Text>
-                     <Text style={styles.reportDateText}>{generatedDate}</Text>
-                  </View>
-               </View>
-
-               <View style={styles.reportClientRow}>
-                  {client.imageUri ? (
-                     <Image source={{ uri: client.imageUri }} style={styles.reportAvatar} />
-                  ) : (
-                     <View style={styles.reportAvatarFallback}>
-                        <Ionicons name="person" size={34} color={COLORS.textDim} />
+            <View ref={progressReportRef} collapsable={false}>
+               {isCapturingReport ? (
+                  <View style={styles.reportSheet}>
+                     <View style={styles.reportHeader}>
+                        <View>
+                           <Text style={styles.reportKicker}>{t('reportBrand')}</Text>
+                           <Text style={styles.reportTitle}>{t('progressReportTitle')}</Text>
+                           <Text style={styles.reportSubtle}>{t('reportPreparedFor')} {client.name}</Text>
+                        </View>
+                        <View style={styles.reportDateBlock}>
+                           <Text style={styles.reportDateLabel}>{t('reportDate')}</Text>
+                           <Text style={styles.reportDateText}>{generatedDate}</Text>
+                        </View>
                      </View>
-                  )}
-                  <View style={styles.reportClientInfo}>
-                     <Text style={styles.reportClientName}>{client.name}</Text>
-                     <Text style={styles.reportSubtle}>{t('age')}: {client.age}  |  {client.gender === 'Male' ? t('male') : t('female')}  |  {t('height')}: {client.heightCM} cm</Text>
-                     <Text style={styles.reportGoalLine}>{t('goal')}: {displayGoal}</Text>
-                  </View>
-               </View>
 
-               <Text style={styles.reportSectionTitle}>{t('reportSummary')}</Text>
-               <View style={styles.reportGrid}>
-                  <View style={styles.reportMetric}><Text style={styles.reportLabel}>{t('latestWeight')}</Text><Text style={styles.reportValue}>{latestWeight ? latestWeight.currentWeightKG + ' kg' : 'N/A'}</Text></View>
-                  <View style={styles.reportMetric}><Text style={styles.reportLabel}>BMI</Text><Text style={styles.reportValue}>{latestWeight ? calculateBMI(latestWeight.currentWeightKG, client.heightCM) : 'N/A'}</Text></View>
-                  <View style={styles.reportMetric}><Text style={styles.reportLabel}>{t('targetWeight')}</Text><Text style={styles.reportValue}>{targetW} kg</Text></View>
-                  <View style={styles.reportMetric}><Text style={styles.reportLabel}>{t('reportChange')}</Text><Text style={styles.reportValue}>{weightChangeText}</Text></View>
-               </View>
-
-               <View style={styles.reportHighlightRow}>
-                  <View style={styles.reportHighlight}><Text style={styles.reportLabel}>{t('estimatedTime')}</Text><Text style={styles.reportValueAccent}>{estimatedWeeksDisplay}</Text></View>
-                  <View style={styles.reportHighlight}><Text style={styles.reportLabel}>{t('attendanceTitle')}</Text><Text style={styles.reportValueAccent}>{attendedCount} {t('sessions')}</Text></View>
-               </View>
-
-               <Text style={styles.reportRangeText}>{t('standardWeight')}: {min} - {max} kg</Text>
-
-               <Text style={styles.reportSectionTitle}>{t('progressHistory')}</Text>
-               <View style={styles.reportTable}>
-                  <View style={styles.reportTableHeader}>
-                     <Text style={[styles.reportTh, { flex: 1.3 }]}>{t('reportDate')}</Text>
-                     <Text style={styles.reportTh}>{t('reportWeight')}</Text>
-                     <Text style={styles.reportTh}>BMI</Text>
-                  </View>
-                  {history.length === 0 ? (
-                     <Text style={styles.reportEmpty}>{t('noRecords')}</Text>
-                  ) : history.slice(0, 8).map(h => (
-                     <View key={h.id} style={styles.reportTableRow}>
-                        <Text style={[styles.reportTd, { flex: 1.3 }]}>{new Date(h.date).toLocaleDateString(dateLocale, { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
-                        <Text style={styles.reportTd}>{h.currentWeightKG} kg</Text>
-                        <Text style={styles.reportTd}>{h.bmi || calculateBMI(h.currentWeightKG, client.heightCM)}</Text>
+                     <View style={styles.reportClientRow}>
+                        {client.imageUri ? (
+                           <Image source={{ uri: client.imageUri }} style={styles.reportAvatar} />
+                        ) : (
+                           <View style={styles.reportAvatarFallback}>
+                              <Ionicons name="person" size={34} color={COLORS.textDim} />
+                           </View>
+                        )}
+                        <View style={styles.reportClientInfo}>
+                           <Text style={styles.reportClientName}>{client.name}</Text>
+                           <Text style={styles.reportSubtle}>{t('age')}: {client.age}  |  {client.gender === 'Male' ? t('male') : t('female')}  |  {t('height')}: {client.heightCM} cm</Text>
+                           <Text style={styles.reportGoalLine}>{t('goal')}: {displayGoal}</Text>
+                        </View>
                      </View>
-                  ))}
-               </View>
-               <Text style={styles.reportFooter}>{t('reportGeneratedBy')}</Text>
-            </View>
-         ) : (
-            <>
-            <View style={styles.profileHeader}>
-               <TouchableOpacity style={styles.avatarCircle} onPress={() => client.imageUri && setActiveImage(client.imageUri)}>
-                  {client.imageUri ? <Image source={{ uri: client.imageUri }} style={{ width: 76, height: 76, borderRadius: 38 }} /> : <Ionicons name="person" size={40} color={COLORS.textDim} />}
-               </TouchableOpacity>
-               <View style={styles.profileInfo}>
-                  <Text style={styles.clientName}>{client.name}</Text>
-                  <Text style={styles.clientSub}>{t('goal')}: {displayGoal}</Text>
-                  <Text style={styles.clientSub}>{t('age')}: {client.age} | {client.gender === 'Male' ? t('male') : t('female')}</Text>
-                  <Text style={styles.clientSub}>{t('height')}: {client.heightCM} cm</Text>
-               </View>
-            </View>
 
-            <View style={styles.statsCard}>
-               <Text style={styles.statsText}>{t('latestWeight')}: {latestWeight ? latestWeight.currentWeightKG + ' kg' : 'N/A'}</Text>
-               <Text style={styles.statsText}>BMI: {latestWeight ? calculateBMI(latestWeight.currentWeightKG, client.heightCM) : 'N/A'}</Text>
-               <Text style={styles.statsText}>{t('targetWeight')}: {targetW} kg</Text>
-               <Text style={styles.statsText}>{t('standardWeight')}: {min} - {max} kg</Text>
-               <Text style={styles.statsText}>{t('estimatedTime')}: <Text style={{ color: COLORS.primary, fontWeight: 'bold' }}>{estimatedWeeksDisplay}</Text></Text>
-            </View>
+                     <Text style={styles.reportSectionTitle}>{t('reportSummary')}</Text>
+                     <View style={styles.reportGrid}>
+                        <View style={styles.reportMetric}><Text style={styles.reportLabel}>{t('latestWeight')}</Text><Text style={styles.reportValue}>{latestWeight ? latestWeight.currentWeightKG + ' kg' : 'N/A'}</Text></View>
+                        <View style={styles.reportMetric}><Text style={styles.reportLabel}>BMI</Text><Text style={styles.reportValue}>{latestWeight ? calculateBMI(latestWeight.currentWeightKG, client.heightCM) : 'N/A'}</Text></View>
+                        <View style={styles.reportMetric}><Text style={styles.reportLabel}>{t('targetWeight')}</Text><Text style={styles.reportValue}>{targetW} kg</Text></View>
+                        <View style={styles.reportMetric}><Text style={styles.reportLabel}>{t('reportChange')}</Text><Text style={styles.reportValue}>{weightChangeText}</Text></View>
+                     </View>
 
-             <TouchableOpacity style={styles.attendanceRow} onPress={() => navigation.navigate('Attendance', { clientId: client.id })}>
-                <View style={styles.attendanceInfo}>
-                   <Ionicons name="calendar" size={24} color={COLORS.primary} />
-                   <View style={{ marginLeft: 12 }}>
-                      <Text style={styles.attendanceLabel}>{t('attendanceTitle')}</Text>
-                      <Text style={styles.attendanceSub}>{attendedCount} {t('sessions')}</Text>
-                   </View>
-                </View>
-                <Ionicons name="chevron-forward" size={24} color={COLORS.textDim} />
-             </TouchableOpacity>
+                     <View style={styles.reportHighlightRow}>
+                        <View style={styles.reportHighlight}><Text style={styles.reportLabel}>{t('estimatedTime')}</Text><Text style={styles.reportValueAccent}>{estimatedWeeksDisplay}</Text></View>
+                        <View style={styles.reportHighlight}><Text style={styles.reportLabel}>{t('attendanceTitle')}</Text><Text style={styles.reportValueAccent}>{attendedCount} {t('sessions')}</Text></View>
+                     </View>
 
-            <View style={styles.sectionHeader}>
-               <Text style={styles.sectionTitle}>{t('progressHistory')}</Text>
-               <TouchableOpacity onPress={() => setModalVisible(true)}>
-                  <Text style={styles.addRecordText}>{t('addWeight')}</Text>
-               </TouchableOpacity>
-            </View>
+                     <Text style={styles.reportRangeText}>{t('standardWeight')}: {min} - {max} kg</Text>
 
-            <View style={styles.historyContainer}>
-               {history.length === 0 ? <Text style={styles.emptyText}>{t('noRecords')}</Text> : history.map(h => (
-                  <TouchableOpacity key={h.id} style={styles.historyRow} onPress={() => navigation.navigate('ProgressRecord', { recordId: h.id })}>
-                     <Text style={styles.historyText}>{new Date(h.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}: {h.currentWeightKG} kg</Text>
-                     {h.photoUris && h.photoUris.length > 0 && <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}><Ionicons name="camera" size={16} color={COLORS.primary} /><Text style={{ color: COLORS.primary, fontSize: 12, marginLeft: 4 }}>{h.photoUris.length}</Text></View>}
-                     <View style={{ flex: 1 }} />
-                     <Ionicons name="chevron-forward" size={20} color={COLORS.textDim} />
-                  </TouchableOpacity>
-               ))}
+                     <Text style={styles.reportSectionTitle}>{t('progressHistory')}</Text>
+                     <View style={styles.reportTable}>
+                        <View style={styles.reportTableHeader}>
+                           <Text style={[styles.reportTh, { flex: 1.3 }]}>{t('reportDate')}</Text>
+                           <Text style={styles.reportTh}>{t('reportWeight')}</Text>
+                           <Text style={styles.reportTh}>BMI</Text>
+                        </View>
+                        {history.length === 0 ? (
+                           <Text style={styles.reportEmpty}>{t('noRecords')}</Text>
+                        ) : history.slice(0, 8).map(h => (
+                           <View key={h.id} style={styles.reportTableRow}>
+                              <Text style={[styles.reportTd, { flex: 1.3 }]}>{new Date(h.date).toLocaleDateString(dateLocale, { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
+                              <Text style={styles.reportTd}>{h.currentWeightKG} kg</Text>
+                              <Text style={styles.reportTd}>{h.bmi || calculateBMI(h.currentWeightKG, client.heightCM)}</Text>
+                           </View>
+                        ))}
+                     </View>
+                     <Text style={styles.reportFooter}>{t('reportGeneratedBy')}</Text>
+                  </View>
+               ) : (
+                  <>
+                     <View style={styles.profileHeader}>
+                        <TouchableOpacity style={styles.avatarCircle} onPress={() => client.imageUri && setActiveImage(client.imageUri)}>
+                           {client.imageUri ? <Image source={{ uri: client.imageUri }} style={{ width: 76, height: 76, borderRadius: 38 }} /> : <Ionicons name="person" size={40} color={COLORS.textDim} />}
+                        </TouchableOpacity>
+                        <View style={styles.profileInfo}>
+                           <Text style={styles.clientName}>{client.name}</Text>
+                           <Text style={styles.clientSub}>{t('goal')}: {displayGoal}</Text>
+                           <Text style={styles.clientSub}>{t('age')}: {client.age} | {client.gender === 'Male' ? t('male') : t('female')}</Text>
+                           <Text style={styles.clientSub}>{t('height')}: {client.heightCM} cm</Text>
+                        </View>
+                     </View>
+
+                     <View style={styles.statsCard}>
+                        <Text style={styles.statsText}>{t('latestWeight')}: {latestWeight ? latestWeight.currentWeightKG + ' kg' : 'N/A'}</Text>
+                        <Text style={styles.statsText}>BMI: {latestWeight ? calculateBMI(latestWeight.currentWeightKG, client.heightCM) : 'N/A'}</Text>
+                        <Text style={styles.statsText}>{t('targetWeight')}: {targetW} kg</Text>
+                        <Text style={styles.statsText}>{t('standardWeight')}: {min} - {max} kg</Text>
+                        <Text style={styles.statsText}>{t('estimatedTime')}: <Text style={{ color: COLORS.primary, fontWeight: 'bold' }}>{estimatedWeeksDisplay}</Text></Text>
+                     </View>
+
+                     <TouchableOpacity style={styles.attendanceRow} onPress={() => navigation.navigate('Attendance', { clientId: client.id })}>
+                        <View style={styles.attendanceInfo}>
+                           <Ionicons name="calendar" size={24} color={COLORS.primary} />
+                           <View style={{ marginLeft: 12 }}>
+                              <Text style={styles.attendanceLabel}>{t('attendanceTitle')}</Text>
+                              <Text style={styles.attendanceSub}>{attendedCount} {t('sessions')}</Text>
+                           </View>
+                        </View>
+                        <Ionicons name="chevron-forward" size={24} color={COLORS.textDim} />
+                     </TouchableOpacity>
+
+                     <View style={styles.sectionHeader}>
+                        <Text style={styles.sectionTitle}>{t('progressHistory')}</Text>
+                        <TouchableOpacity onPress={() => setModalVisible(true)}>
+                           <Text style={styles.addRecordText}>{t('addWeight')}</Text>
+                        </TouchableOpacity>
+                     </View>
+
+                     <View style={styles.historyContainer}>
+                        {history.length === 0 ? <Text style={styles.emptyText}>{t('noRecords')}</Text> : history.map(h => (
+                           <TouchableOpacity key={h.id} style={styles.historyRow} onPress={() => navigation.navigate('ProgressRecord', { recordId: h.id })}>
+                              <Text style={styles.historyText}>{new Date(h.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}: {h.currentWeightKG} kg</Text>
+                              {h.photoUris && h.photoUris.length > 0 && <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}><Ionicons name="camera" size={16} color={COLORS.primary} /><Text style={{ color: COLORS.primary, fontSize: 12, marginLeft: 4 }}>{h.photoUris.length}</Text></View>}
+                              <View style={{ flex: 1 }} />
+                              <Ionicons name="chevron-forward" size={20} color={COLORS.textDim} />
+                           </TouchableOpacity>
+                        ))}
+                     </View>
+                  </>
+               )}
             </View>
-            </>
-         )}
-         </View>
          </View>
 
          <View style={styles.mealPlanContainer}>
@@ -420,7 +422,7 @@ export default function ClientDetailScreen({ route, navigation }: any) {
          </View>
 
          <TouchableOpacity style={styles.deleteBtn} onPress={handleDelete}>
-            <Ionicons name="trash-outline" size={20} color="#ff4444" style={{marginRight: 8}}/>
+            <Ionicons name="trash-outline" size={20} color="#ff4444" style={{ marginRight: 8 }} />
             <Text style={styles.deleteBtnText}>{t('deleteClient')}</Text>
          </TouchableOpacity>
 
@@ -472,12 +474,12 @@ export default function ClientDetailScreen({ route, navigation }: any) {
                      <TouchableOpacity onPress={pickRecordImage} style={{ width: 80, height: 80, borderRadius: 8, backgroundColor: COLORS.surfaceLight, alignItems: 'center', justifyContent: 'center' }}>
                         <Ionicons name="camera" size={24} color={COLORS.textDim} />
                      </TouchableOpacity>
-                   </ScrollView>
+                  </ScrollView>
 
                   <TextInput style={styles.input} placeholder={t('currentWeight')} placeholderTextColor={COLORS.textDim} keyboardType="numeric" value={newWeight} onChangeText={setNewWeight} autoFocus />
                   <View style={styles.modalActions}>
                      <TouchableOpacity onPress={() => { setModalVisible(false); setNewWeight(''); setRecordPhotoUris([]); }} style={{ padding: 16 }} disabled={isSaving}><Text style={{ color: COLORS.textDim, fontWeight: 'bold' }}>{t('cancel')}</Text></TouchableOpacity>
-                     <TouchableOpacity onPress={handleSaveWeight} style={[styles.modalSaveBtn, isSaving && {opacity: 0.5}]} disabled={isSaving}>
+                     <TouchableOpacity onPress={handleSaveWeight} style={[styles.modalSaveBtn, isSaving && { opacity: 0.5 }]} disabled={isSaving}>
                         <Text style={{ color: '#000', fontWeight: 'bold' }}>{isSaving ? 'Saving...' : t('save')}</Text>
                      </TouchableOpacity>
                   </View>
@@ -499,10 +501,10 @@ export default function ClientDetailScreen({ route, navigation }: any) {
                   <View style={styles.configGroup}>
                      <View style={styles.configRow}>
                         <Text style={styles.configLabel}>{t('modifierKcal')}</Text>
-                        <TextInput 
-                           style={styles.configInput} 
-                           value={localModifier} 
-                           onChangeText={(v) => { setLocalModifier(v); updateKGFromModifier(v); }} 
+                        <TextInput
+                           style={styles.configInput}
+                           value={localModifier}
+                           onChangeText={(v) => { setLocalModifier(v); updateKGFromModifier(v); }}
                            keyboardType="numbers-and-punctuation"
                            placeholder="0"
                            placeholderTextColor={COLORS.textDim}
@@ -511,29 +513,29 @@ export default function ClientDetailScreen({ route, navigation }: any) {
 
                      <View style={styles.configRow}>
                         <Text style={styles.configLabel}>{client.goal === 'Lose Weight' ? t('targetKGMonthLoss') : t('targetKGMonthGain')}</Text>
-                        <TextInput 
-                           style={[styles.configInput, { color: COLORS.primary, borderColor: COLORS.primary }]} 
-                           value={localKG} 
-                           onChangeText={updateModifierFromKG} 
+                        <TextInput
+                           style={[styles.configInput, { color: COLORS.primary, borderColor: COLORS.primary }]}
+                           value={localKG}
+                           onChangeText={updateModifierFromKG}
                            keyboardType="numeric"
                            placeholder="0.0"
                            placeholderTextColor={COLORS.textDim}
                         />
                      </View>
-                     
-                     {((client.goal === 'Lose Weight' && parseFloat(localKG) > 4) || 
-                       (client.goal === 'Gain Muscle' && parseFloat(localKG) > 3) || 
-                       (client.goal === 'Gain Weight' && parseFloat(localKG) > 5)) && (
-                        <Text style={styles.warningText}>{t('unhealthyWarning')}</Text>
-                     )}
+
+                     {((client.goal === 'Lose Weight' && parseFloat(localKG) > 4) ||
+                        (client.goal === 'Gain Muscle' && parseFloat(localKG) > 3) ||
+                        (client.goal === 'Gain Weight' && parseFloat(localKG) > 5)) && (
+                           <Text style={styles.warningText}>{t('unhealthyWarning')}</Text>
+                        )}
                   </View>
 
                   <TouchableOpacity style={styles.configSaveBtn} onPress={handleSaveConfig}>
                      <Text style={styles.configSaveBtnText}>{t('save')}</Text>
                   </TouchableOpacity>
 
-                  <TouchableOpacity 
-                     style={{ marginTop: 12, alignItems: 'center' }} 
+                  <TouchableOpacity
+                     style={{ marginTop: 12, alignItems: 'center' }}
                      onPress={() => {
                         setLocalModifier('');
                         setLocalKG('');
@@ -553,8 +555,8 @@ export default function ClientDetailScreen({ route, navigation }: any) {
                   <Ionicons name="close" size={32} color="#fff" />
                </TouchableOpacity>
                {activeImage && <Image source={{ uri: activeImage }} style={{ width: '100%', height: '80%' }} resizeMode="contain" />}
-               
-               <TouchableOpacity 
+
+               <TouchableOpacity
                   style={{ position: 'absolute', bottom: 60, backgroundColor: COLORS.primary, paddingVertical: 12, paddingHorizontal: 24, borderRadius: 30, flexDirection: 'row', alignItems: 'center', gap: 8 }}
                   onPress={() => activeImage && handleSaveToGallery(activeImage)}
                >

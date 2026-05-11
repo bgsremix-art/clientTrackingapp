@@ -74,6 +74,8 @@ export interface UserProfile {
   storageBytes?: number;
   storageUploadCount?: number;
   untrackedPhotoCount?: number;
+  dailyReads?: number;
+  dailyWrites?: number;
 }
 
 export interface AdminAppConfig {
