@@ -38,13 +38,13 @@ function ClientStackScreen() {
   const { t } = useClients();
   return (
     <Stack.Navigator
-        initialRouteName="Dashboard"
-        screenOptions={{
-             headerStyle: { backgroundColor: COLORS.surface },
-             headerTintColor: COLORS.text,
-             headerTitleStyle: { fontWeight: 'bold' },
-             contentStyle: { backgroundColor: COLORS.background },
-        }}
+      initialRouteName="Dashboard"
+      screenOptions={{
+        headerStyle: { backgroundColor: COLORS.surface },
+        headerTintColor: COLORS.text,
+        headerTitleStyle: { fontWeight: 'bold' },
+        contentStyle: { backgroundColor: COLORS.background },
+      }}
     >
       <Stack.Screen name="Dashboard" component={DashboardScreen} options={{ title: t('dashboardTitle'), headerShown: false }} />
       <Stack.Screen name="AddClient" component={AddClientScreen} options={{ title: t('addClientTitle') }} />
@@ -60,12 +60,12 @@ function IngredientStackScreen() {
   const { t } = useClients();
   return (
     <IngredientStack.Navigator
-        screenOptions={{
-             headerStyle: { backgroundColor: COLORS.surface },
-             headerTintColor: COLORS.text,
-             headerTitleStyle: { fontWeight: 'bold' },
-             contentStyle: { backgroundColor: COLORS.background },
-        }}
+      screenOptions={{
+        headerStyle: { backgroundColor: COLORS.surface },
+        headerTintColor: COLORS.text,
+        headerTitleStyle: { fontWeight: 'bold' },
+        contentStyle: { backgroundColor: COLORS.background },
+      }}
     >
       <IngredientStack.Screen name="Library" component={IngredientsLibraryScreen} options={{ title: t('ingredientsLibrary'), headerShown: false }} />
       <IngredientStack.Screen name="AddIngredient" component={AddIngredientScreen} options={{ title: 'Add New Ingredient', headerShown: false }} />
@@ -92,29 +92,29 @@ function AdminStackScreen() {
 function MainApp() {
   const { t, isAdmin } = useClients();
   return (
-      <Tab.Navigator
-        screenOptions={({ route }) => ({
-            tabBarIcon: ({ focused, color, size }) => {
-                let iconName: keyof typeof Ionicons.glyphMap = 'people';
-                if (route.name === 'Clients L') iconName = focused ? 'people' : 'people-outline';
-                else if (route.name === 'Ingredients') iconName = focused ? 'restaurant' : 'restaurant-outline';
-                else if (route.name === 'Subscription') iconName = focused ? 'card' : 'card-outline';
-                else if (route.name === 'Admin') iconName = focused ? 'shield-checkmark' : 'shield-checkmark-outline';
-                else if (route.name === 'Settings') iconName = focused ? 'settings' : 'settings-outline';
-                return <Ionicons name={iconName} size={size} color={color} />;
-            },
-            tabBarActiveTintColor: COLORS.primary,
-            tabBarInactiveTintColor: COLORS.textDim,
-            tabBarStyle: { backgroundColor: COLORS.surface, borderTopColor: COLORS.border, borderTopWidth: 1 },
-            headerShown: false,
-        })}
-      >
-        <Tab.Screen name="Clients L" component={ClientStackScreen} options={{ title: t('tabClients') }} />
-        <Tab.Screen name="Ingredients" component={IngredientStackScreen} options={{ title: t('tabIngredients') }} />
-        <Tab.Screen name="Subscription" component={SubscriptionScreen} options={{ title: t('subscription') }} />
-        {isAdmin && <Tab.Screen name="Admin" component={AdminStackScreen} options={{ title: 'Admin' }} />}
-        <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t('tabSettings') }}/>
-      </Tab.Navigator>
+    <Tab.Navigator
+      screenOptions={({ route }) => ({
+        tabBarIcon: ({ focused, color, size }) => {
+          let iconName: keyof typeof Ionicons.glyphMap = 'people';
+          if (route.name === 'Clients L') iconName = focused ? 'people' : 'people-outline';
+          else if (route.name === 'Ingredients') iconName = focused ? 'restaurant' : 'restaurant-outline';
+          else if (route.name === 'Subscription') iconName = focused ? 'card' : 'card-outline';
+          else if (route.name === 'Admin') iconName = focused ? 'shield-checkmark' : 'shield-checkmark-outline';
+          else if (route.name === 'Settings') iconName = focused ? 'settings' : 'settings-outline';
+          return <Ionicons name={iconName} size={size} color={color} />;
+        },
+        tabBarActiveTintColor: COLORS.primary,
+        tabBarInactiveTintColor: COLORS.textDim,
+        tabBarStyle: { backgroundColor: COLORS.surface, borderTopColor: COLORS.border, borderTopWidth: 1 },
+        headerShown: false,
+      })}
+    >
+      <Tab.Screen name="Clients L" component={ClientStackScreen} options={{ title: t('tabClients') }} />
+      <Tab.Screen name="Ingredients" component={IngredientStackScreen} options={{ title: t('tabIngredients') }} />
+      <Tab.Screen name="Subscription" component={SubscriptionScreen} options={{ title: t('subscription') }} />
+      {isAdmin && <Tab.Screen name="Admin" component={AdminStackScreen} options={{ title: 'Admin' }} />}
+      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t('tabSettings') }} />
+    </Tab.Navigator>
   );
 }
 
@@ -130,7 +130,7 @@ function RootNavigator() {
   }
 
   return (
-    <NavigationContainer theme={{...DarkTheme, colors: {...DarkTheme.colors, background: COLORS.background}}}>
+    <NavigationContainer theme={{ ...DarkTheme, colors: { ...DarkTheme.colors, background: COLORS.background } }}>
       <ClientProvider>
         {user ? (
           <AccessGuard>

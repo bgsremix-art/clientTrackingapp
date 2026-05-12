@@ -28,7 +28,17 @@ export default function ClientDetailScreen({ route, navigation }: any) {
    const [isCapturingReport, setIsCapturingReport] = useState(false);
    const [reportOptionsVisible, setReportOptionsVisible] = useState(false);
    const [activeImage, setActiveImage] = useState<string | null>(null);
+   const [compareModalVisible, setCompareModalVisible] = useState(false);
+   const [beforeRecord, setBeforeRecord] = useState<any | null>(null);
+   const [afterRecord, setAfterRecord] = useState<any | null>(null);
+   const [beforePhotoIdx, setBeforePhotoIdx] = useState(0);
+   const [afterPhotoIdx, setAfterPhotoIdx] = useState(0);
+   const [beforeScale, setBeforeScale] = useState(1);
+   const [afterScale, setAfterScale] = useState(1);
+   const [isSelectingForCompare, setIsSelectingForCompare] = useState(false);
+   const [selectedCompareIds, setSelectedCompareIds] = useState<string[]>([]);
    const progressReportRef = useRef<View>(null);
+   const comparisonRef = useRef<View>(null);
 
    // Config States
    const [localModifier, setLocalModifier] = useState(client?.customCalorieModifier?.toString() || '');
@@ -90,37 +100,36 @@ export default function ClientDetailScreen({ route, navigation }: any) {
 
    const getReportPdfLabels = () => ({
       generated: t('reportGeneratedLabel'),
-      dateLocale,
-      generatedBy: t('reportGeneratedBy'),
-      client: t('clientName'),
-      name: t('clientName'),
-      goal: t('goal'),
-      ageGender: `${t('age')} / ${t('gender')}`,
-      height: t('height'),
-      latestWeight: t('latestWeight'),
-      targetWeight: t('targetWeight'),
-      healthyRange: t('standardWeight'),
-      estimatedTime: t('estimatedTime'),
-      attendance: t('attendanceTitle'),
-      sessionsTracked: t('sessions'),
-      progressHistory: t('progressHistory'),
+      preparedFor: t('reportPreparedFor'),
       date: t('reportDate'),
+      generatedBy: t('reportGeneratedBy'),
+      mealPlan: t('mealPlanTitle'),
+      progressReport: t('progressReportTitle'),
+      summary: t('reportSummary'),
+      change: t('reportChange'),
       weight: t('reportWeight'),
-      notes: t('notes'),
-      noProgressRecords: t('noRecords'),
-      reportSummary: t('reportSummary'),
-      clientProgressReport: t('progressReportTitle'),
+      category: t('reportCategory'),
+      ingredient: t('reportIngredient'),
+      portion: t('reportPortion'),
+      dailyTargets: t('reportDailyTargets'),
+      nutritionTarget: t('reportNutritionTarget'),
+      dateLocale,
    });
 
    const getProgressPdfParams = () => ({
       client: { ...client, goal: displayGoal },
       records: history,
       attendance: attendance.filter(a => a.clientId === client.id),
-      targetWeight: targetW,
-      healthyMin: min,
-      healthyMax: max,
-      estimatedWeeks: estimatedWeeksDisplay,
+      targetWeight: targetW.toString(),
+      healthyMin: min.toString(),
+      healthyMax: max.toString(),
+      estimatedWeeks: estimatedWeeksDisplay.toString(),
       labels: getReportPdfLabels(),
+      branding: {
+         gymLogo: settings.gymLogo,
+         gymName: settings.gymName,
+         trainerName: settings.trainerName
+      }
    });
 
    const handleShareProgressPdf = async () => {
@@ -136,6 +145,9 @@ export default function ClientDetailScreen({ route, navigation }: any) {
       setIsSharingPdf(true);
       try {
          await saveClientProgressPdf(getProgressPdfParams());
+         Alert.alert(t('success'), t('done'));
+      } catch (e: any) {
+         Alert.alert("Error", e.message);
       } finally {
          setIsSharingPdf(false);
       }
@@ -174,11 +186,53 @@ export default function ClientDetailScreen({ route, navigation }: any) {
             format: 'jpg',
             quality: 0.92,
          });
-         await saveImageFile(uri, `${getSafeFileName(client.name, 'progress-report')}.jpg`);
+         const success = await saveImageFile(uri, `${getSafeFileName(client.name, 'progress-report')}.jpg`);
+         if (success) {
+            Alert.alert(t('success'), t('done'));
+         }
       } catch (error: any) {
          Alert.alert('Image Error', error.message || 'Failed to save image.');
       } finally {
          setIsCapturingReport(false);
+         setIsSharingPdf(false);
+      }
+   };
+
+   const handleShareComparison = async () => {
+      if (!comparisonRef.current) return;
+      setIsSharingPdf(true);
+      try {
+         // Tiny delay for layout
+         await new Promise(r => setTimeout(r, 200));
+         const uri = await captureRef(comparisonRef.current, {
+            format: 'jpg',
+            quality: 0.92,
+         });
+         await shareImageFile(uri, `${getSafeFileName(client.name, 'comparison')}.jpg`);
+         Alert.alert(t('success'), t('comparisonSaved'));
+      } catch (error: any) {
+         Alert.alert('Error', 'Failed to create comparison image');
+      } finally {
+         setIsSharingPdf(false);
+      }
+   };
+
+   const handleSaveComparison = async () => {
+      if (!comparisonRef.current) return;
+      setIsSharingPdf(true);
+      try {
+         await new Promise(r => setTimeout(r, 200));
+         const uri = await captureRef(comparisonRef.current, {
+            format: 'jpg',
+            quality: 0.92,
+         });
+         const success = await saveImageFile(uri, `${getSafeFileName(client.name, 'comparison')}.jpg`);
+         if (success) {
+            Alert.alert(t('success'), t('comparisonSaved'));
+         }
+      } catch (error: any) {
+         Alert.alert('Error', 'Failed to save comparison image');
+      } finally {
          setIsSharingPdf(false);
       }
    };
@@ -260,7 +314,11 @@ export default function ClientDetailScreen({ route, navigation }: any) {
    }
 
    return (
-      <ScrollView style={styles.container}>
+      <ScrollView 
+         style={styles.container} 
+         keyboardShouldPersistTaps="handled"
+         showsVerticalScrollIndicator={false}
+      >
          <View style={styles.header}>
             <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color={COLORS.text} /></TouchableOpacity>
             <Text style={styles.headerTitle}>{t('clientDetailsTitle')}</Text>
@@ -290,12 +348,25 @@ export default function ClientDetailScreen({ route, navigation }: any) {
                {isCapturingReport ? (
                   <View style={styles.reportSheet}>
                      <View style={styles.reportHeader}>
-                        <View>
+                        <View style={{ flex: 1 }}>
                            <Text style={styles.reportKicker}>{t('reportBrand')}</Text>
                            <Text style={styles.reportTitle}>{t('progressReportTitle')}</Text>
                            <Text style={styles.reportSubtle}>{t('reportPreparedFor')} {client.name}</Text>
+                           {(settings.gymName || settings.trainerName) && (
+                              <View style={{ marginTop: 8 }}>
+                                 {settings.gymName && <Text style={{ color: COLORS.primary, fontSize: 14, fontWeight: 'bold' }}>{settings.gymName}</Text>}
+                                 {settings.trainerName && <Text style={{ color: COLORS.textDim, fontSize: 12 }}>{t('trainer')}: {settings.trainerName}</Text>}
+                              </View>
+                           )}
                         </View>
-                        <View style={styles.reportDateBlock}>
+                        {settings.gymLogo && (
+                           <Image 
+                              source={{ uri: settings.gymLogo }} 
+                              style={{ width: 60, height: 60, borderRadius: 8, marginLeft: 16 }} 
+                              resizeMode="contain"
+                           />
+                        )}
+                        <View style={[styles.reportDateBlock, { marginLeft: 16 }]}>
                            <Text style={styles.reportDateLabel}>{t('reportDate')}</Text>
                            <Text style={styles.reportDateText}>{generatedDate}</Text>
                         </View>
@@ -385,20 +456,91 @@ export default function ClientDetailScreen({ route, navigation }: any) {
 
                      <View style={styles.sectionHeader}>
                         <Text style={styles.sectionTitle}>{t('progressHistory')}</Text>
-                        <TouchableOpacity onPress={() => setModalVisible(true)}>
-                           <Text style={styles.addRecordText}>{t('addWeight')}</Text>
-                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                           <TouchableOpacity onPress={() => {
+                              if (history.length < 2) {
+                                 Alert.alert(t('info'), t('noDataForChart'));
+                                 return;
+                              }
+                              setIsSelectingForCompare(!isSelectingForCompare);
+                              setSelectedCompareIds([]);
+                           }}>
+                              <Text style={[styles.addRecordText, isSelectingForCompare && { color: '#ff4444' }]}>
+                                 {isSelectingForCompare ? t('cancel') : t('comparePhotos')}
+                              </Text>
+                           </TouchableOpacity>
+                           {!isSelectingForCompare && (
+                              <TouchableOpacity onPress={() => setModalVisible(true)}>
+                                 <Text style={styles.addRecordText}>{t('addWeight')}</Text>
+                              </TouchableOpacity>
+                           )}
+                        </View>
                      </View>
 
                      <View style={styles.historyContainer}>
-                        {history.length === 0 ? <Text style={styles.emptyText}>{t('noRecords')}</Text> : history.map(h => (
-                           <TouchableOpacity key={h.id} style={styles.historyRow} onPress={() => navigation.navigate('ProgressRecord', { recordId: h.id })}>
-                              <Text style={styles.historyText}>{new Date(h.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}: {h.currentWeightKG} kg</Text>
-                              {h.photoUris && h.photoUris.length > 0 && <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}><Ionicons name="camera" size={16} color={COLORS.primary} /><Text style={{ color: COLORS.primary, fontSize: 12, marginLeft: 4 }}>{h.photoUris.length}</Text></View>}
-                              <View style={{ flex: 1 }} />
-                              <Ionicons name="chevron-forward" size={20} color={COLORS.textDim} />
-                           </TouchableOpacity>
-                        ))}
+                        {isSelectingForCompare && (
+                           <Text style={{ color: COLORS.primary, fontSize: 13, textAlign: 'center', marginBottom: 12, fontWeight: 'bold' }}>
+                              {selectedCompareIds.length === 0 ? 'Select first photo (Before)' : 'Select second photo (After)'}
+                           </Text>
+                        )}
+                        {history.length === 0 ? <Text style={styles.emptyText}>{t('noRecords')}</Text> : history.map(h => {
+                           const isSelected = selectedCompareIds.includes(h.id);
+                           return (
+                              <TouchableOpacity 
+                                 key={h.id} 
+                                 style={[styles.historyRow, isSelected && { borderColor: COLORS.primary, borderWidth: 1 }]} 
+                                 onPress={() => {
+                                    if (isSelectingForCompare) {
+                                       if (isSelected) {
+                                          setSelectedCompareIds(prev => prev.filter(id => id !== h.id));
+                                       } else {
+                                          const next = [...selectedCompareIds, h.id];
+                                          if (next.length === 2) {
+                                             const before = history.find(r => r.id === next[0]);
+                                             const after = history.find(r => r.id === next[1]);
+                                             // Ensure chronological order (older is before)
+                                             if (before && after) {
+                                                if (new Date(before.date) > new Date(after.date)) {
+                                                   setBeforeRecord(after);
+                                                   setAfterRecord(before);
+                                                } else {
+                                                   setBeforeRecord(before);
+                                                   setAfterRecord(after);
+                                                }
+                                             }
+                                             setBeforePhotoIdx(0);
+                                             setAfterPhotoIdx(0);
+                                             setBeforeScale(1);
+                                             setAfterScale(1);
+                                             setCompareModalVisible(true);
+                                             setIsSelectingForCompare(false);
+                                             setSelectedCompareIds([]);
+                                          } else {
+                                             setSelectedCompareIds(next);
+                                          }
+                                       }
+                                    } else {
+                                       navigation.navigate('ProgressRecord', { recordId: h.id });
+                                    }
+                                 }}
+                              >
+                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                    {isSelectingForCompare && (
+                                       <Ionicons 
+                                          name={isSelected ? "checkmark-circle" : "ellipse-outline"} 
+                                          size={22} 
+                                          color={isSelected ? COLORS.primary : COLORS.textDim} 
+                                          style={{ marginRight: 12 }} 
+                                       />
+                                    )}
+                                    <Text style={styles.historyText}>{new Date(h.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}: {h.currentWeightKG} kg</Text>
+                                 </View>
+                                 {h.photoUris && h.photoUris.length > 0 && <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}><Ionicons name="camera" size={16} color={COLORS.primary} /><Text style={{ color: COLORS.primary, fontSize: 12, marginLeft: 4 }}>{h.photoUris.length}</Text></View>}
+                                 <View style={{ flex: 1 }} />
+                                 {!isSelectingForCompare && <Ionicons name="chevron-forward" size={20} color={COLORS.textDim} />}
+                              </TouchableOpacity>
+                           );
+                        })}
                      </View>
                   </>
                )}
@@ -565,6 +707,134 @@ export default function ClientDetailScreen({ route, navigation }: any) {
                </TouchableOpacity>
             </View>
          </Modal>
+
+         {/* Compare Photos Modal */}
+         <Modal visible={compareModalVisible} transparent animationType="slide">
+            <View style={styles.modalBg}>
+               <View style={[styles.modalCard, { width: '98%', height: '90%', padding: 12 }]}>
+                  <View style={styles.modalHeaderRow}>
+                     <View>
+                        <Text style={styles.modalTitle}>{t('comparePhotos')}</Text>
+                        <Text style={{ color: COLORS.textDim, fontSize: 12 }}>{t('reportChange')}: <Text style={{ color: COLORS.primary, fontWeight: 'bold' }}>{beforeRecord && afterRecord ? (afterRecord.currentWeightKG - beforeRecord.currentWeightKG).toFixed(1) : 0} kg</Text></Text>
+                     </View>
+                     <TouchableOpacity onPress={() => setCompareModalVisible(false)}><Ionicons name="close" size={28} color={COLORS.textDim} /></TouchableOpacity>
+                  </View>
+
+                  <ScrollView showsVerticalScrollIndicator={false}>
+                     <View ref={comparisonRef} collapsable={false} style={{ backgroundColor: '#000', borderRadius: 12, overflow: 'hidden' }}>
+                        <View style={{ flexDirection: 'row', height: 480 }}>
+                           {/* Before Column */}
+                           <View style={{ flex: 1, borderRightWidth: 1, borderRightColor: '#333', overflow: 'hidden' }}>
+                              <ScrollView 
+                                 style={{ flex: 1 }} 
+                                 contentContainerStyle={{ flexGrow: 1 }}
+                                 maximumZoomScale={5}
+                                 minimumZoomScale={1}
+                                 showsHorizontalScrollIndicator={false}
+                                 showsVerticalScrollIndicator={false}
+                                 centerContent
+                              >
+                                 <View style={{ flex: 1, backgroundColor: '#111' }}>
+                                    {beforeRecord?.photoUris?.[beforePhotoIdx] ? (
+                                       <Image 
+                                          source={{ uri: beforeRecord.photoUris[beforePhotoIdx] }} 
+                                          style={{ width: '100%', height: '100%', transform: [{ scale: beforeScale }] }} 
+                                          resizeMode="cover" 
+                                       />
+                                    ) : (
+                                       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="image-outline" size={48} color="#333" /></View>
+                                    )}
+                                 </View>
+                              </ScrollView>
+                              {/* Fixed Overlays outside ScrollView */}
+                              <View style={{ position: 'absolute', bottom: 12, left: 12, pointerEvents: 'none' }}>
+                                 <Text style={{ color: '#c6ff00', fontSize: 24, fontWeight: '900', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3 }}>BEFORE</Text>
+                                 <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>{beforeRecord ? new Date(beforeRecord.date).toLocaleDateString('en-US') : ''}</Text>
+                                 <Text style={{ color: '#fff', fontSize: 14 }}>{beforeRecord?.currentWeightKG} kg</Text>
+                              </View>
+                           </View>
+
+                           {/* After Column */}
+                           <View style={{ flex: 1, overflow: 'hidden' }}>
+                              <ScrollView 
+                                 style={{ flex: 1 }} 
+                                 contentContainerStyle={{ flexGrow: 1 }}
+                                 maximumZoomScale={5}
+                                 minimumZoomScale={1}
+                                 showsHorizontalScrollIndicator={false}
+                                 showsVerticalScrollIndicator={false}
+                                 centerContent
+                              >
+                                 <View style={{ flex: 1, backgroundColor: '#111' }}>
+                                    {afterRecord?.photoUris?.[afterPhotoIdx] ? (
+                                       <Image 
+                                          source={{ uri: afterRecord.photoUris[afterPhotoIdx] }} 
+                                          style={{ width: '100%', height: '100%', transform: [{ scale: afterScale }] }} 
+                                          resizeMode="cover" 
+                                       />
+                                    ) : (
+                                       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="image-outline" size={48} color="#333" /></View>
+                                    )}
+                                 </View>
+                              </ScrollView>
+                              {/* Fixed Overlays outside ScrollView */}
+                              <View style={{ position: 'absolute', bottom: 12, left: 12, pointerEvents: 'none' }}>
+                                 <Text style={{ color: '#c6ff00', fontSize: 24, fontWeight: '900', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3 }}>AFTER</Text>
+                                 <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>{afterRecord ? new Date(afterRecord.date).toLocaleDateString('en-US') : ''}</Text>
+                                 <Text style={{ color: '#fff', fontSize: 14 }}>{afterRecord?.currentWeightKG} kg</Text>
+                              </View>
+                           </View>
+                        </View>
+                     </View>
+
+
+                     {/* Photo selection for the specific chosen records */}
+                     <View style={{ marginTop: 16 }}>
+                        <View style={{ flexDirection: 'row', gap: 12 }}>
+                           <View style={{ flex: 1 }}>
+                              <Text style={{ color: COLORS.text, fontWeight: 'bold', fontSize: 13, marginBottom: 4 }}>{t('before')} Photos:</Text>
+                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                                 {beforeRecord?.photoUris?.map((uri: string, idx: number) => (
+                                    <TouchableOpacity key={idx} onPress={() => setBeforePhotoIdx(idx)} style={{ marginRight: 8 }}>
+                                       <Image source={{ uri }} style={{ width: 50, height: 50, borderRadius: 6, borderWidth: beforePhotoIdx === idx ? 2 : 0, borderColor: COLORS.primary }} />
+                                    </TouchableOpacity>
+                                 ))}
+                              </ScrollView>
+                           </View>
+
+                           <View style={{ flex: 1 }}>
+                              <Text style={{ color: COLORS.text, fontWeight: 'bold', fontSize: 13, marginBottom: 4 }}>{t('after')} Photos:</Text>
+                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                                 {afterRecord?.photoUris?.map((uri: string, idx: number) => (
+                                    <TouchableOpacity key={idx} onPress={() => setAfterPhotoIdx(idx)} style={{ marginRight: 8 }}>
+                                       <Image source={{ uri }} style={{ width: 50, height: 50, borderRadius: 6, borderWidth: afterPhotoIdx === idx ? 2 : 0, borderColor: COLORS.primary }} />
+                                    </TouchableOpacity>
+                                 ))}
+                              </ScrollView>
+                           </View>
+                        </View>
+                     </View>
+
+                     <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, paddingBottom: 20 }}>
+                        <TouchableOpacity style={[styles.reportActionBtn, { flex: 1 }]} onPress={handleShareComparison}>
+                           <Ionicons name="share-outline" size={18} color="#000" />
+                           <Text style={styles.reportActionText}>{t('share')}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={[styles.reportActionBtn, { flex: 1 }]} onPress={handleSaveComparison}>
+                           <Ionicons name="download-outline" size={18} color="#000" />
+                           <Text style={styles.reportActionText}>{t('save')}</Text>
+                        </TouchableOpacity>
+                     </View>
+                  </ScrollView>
+               </View>
+            </View>
+         </Modal>
+
+         {isSharingPdf && (
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
+               <ActivityIndicator size="large" color={COLORS.primary} />
+            </View>
+         )}
 
       </ScrollView>
    )

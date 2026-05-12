@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import * as ImagePicker from 'expo-image-picker';
@@ -111,83 +111,93 @@ export default function AddClientScreen({ navigation, route }: Props) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      
-      <View style={styles.headerAvatar}>
-        <TouchableOpacity style={styles.avatarCircle} onPress={pickImage}>
-          {imageUri ? <Image source={{uri: imageUri}} style={styles.avatarImg} /> : <Ionicons name="person" size={54} color={COLORS.textDim} />}
-          <View style={styles.cameraIcon}>
-            <Ionicons name="camera" size={16} color="#fff" />
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      style={{ flex: 1 }}
+    >
+      <ScrollView 
+        style={styles.container} 
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        
+        <View style={styles.headerAvatar}>
+          <TouchableOpacity style={styles.avatarCircle} onPress={pickImage}>
+            {imageUri ? <Image source={{uri: imageUri}} style={styles.avatarImg} /> : <Ionicons name="person" size={54} color={COLORS.textDim} />}
+            <View style={styles.cameraIcon}>
+              <Ionicons name="camera" size={16} color="#fff" />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.label}>{t('clientName')}</Text>
+        <TextInput style={[styles.input, styles.inputActive]} value={name} onChangeText={setName} placeholder={t('namePlaceholder')} placeholderTextColor={COLORS.textDim} />
+        
+        <Text style={styles.label}>{t('currentObjective')}</Text>
+        <View style={{flexDirection: 'row', gap: 8, marginBottom: 8}}>
+          <TouchableOpacity style={[styles.objectiveBtn, {backgroundColor: COLORS.surface}, goal === 'Lose Weight' && styles.objectiveBtnActive]} onPress={() => setGoal('Lose Weight')}>
+            <Text style={[styles.objectiveText, goal === 'Lose Weight' && styles.objectiveTextActive]}>{t('loseWeight')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.objectiveBtn, {backgroundColor: COLORS.surface}, goal === 'Maintain Weight' && styles.objectiveBtnActive]} onPress={() => setGoal('Maintain Weight')}>
+            <Text style={[styles.objectiveText, goal === 'Maintain Weight' && styles.objectiveTextActive]}>{t('maintainWeight')}</Text>
+          </TouchableOpacity>
+        </View>
+        <View style={{flexDirection: 'row', gap: 8}}>
+          <TouchableOpacity style={[styles.objectiveBtn, {backgroundColor: COLORS.surface}, goal === 'Gain Muscle' && styles.objectiveBtnActive]} onPress={() => setGoal('Gain Muscle')}>
+            <Text style={[styles.objectiveText, goal === 'Gain Muscle' && styles.objectiveTextActive]}>{t('gainMuscle')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.objectiveBtn, {backgroundColor: COLORS.surface}, goal === 'Gain Weight' && styles.objectiveBtnActive]} onPress={() => setGoal('Gain Weight')}>
+            <Text style={[styles.objectiveText, goal === 'Gain Weight' && styles.objectiveTextActive]}>{t('gainWeight')}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.gridRow}>
+          <View style={styles.gridCol}>
+             <Text style={styles.label}>{t('age')}</Text>
+             <TextInput style={styles.input} value={age} onChangeText={setAge} keyboardType="numeric" placeholder="25" placeholderTextColor={COLORS.textDim} />
           </View>
-        </TouchableOpacity>
-      </View>
-
-      <Text style={styles.label}>{t('clientName')}</Text>
-      <TextInput style={[styles.input, styles.inputActive]} value={name} onChangeText={setName} placeholder={t('namePlaceholder')} placeholderTextColor={COLORS.textDim} />
-      
-      <Text style={styles.label}>{t('currentObjective')}</Text>
-      <View style={{flexDirection: 'row', gap: 8, marginBottom: 8}}>
-        <TouchableOpacity style={[styles.objectiveBtn, {backgroundColor: COLORS.surface}, goal === 'Lose Weight' && styles.objectiveBtnActive]} onPress={() => setGoal('Lose Weight')}>
-          <Text style={[styles.objectiveText, goal === 'Lose Weight' && styles.objectiveTextActive]}>{t('loseWeight')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.objectiveBtn, {backgroundColor: COLORS.surface}, goal === 'Maintain Weight' && styles.objectiveBtnActive]} onPress={() => setGoal('Maintain Weight')}>
-          <Text style={[styles.objectiveText, goal === 'Maintain Weight' && styles.objectiveTextActive]}>{t('maintainWeight')}</Text>
-        </TouchableOpacity>
-      </View>
-      <View style={{flexDirection: 'row', gap: 8}}>
-        <TouchableOpacity style={[styles.objectiveBtn, {backgroundColor: COLORS.surface}, goal === 'Gain Muscle' && styles.objectiveBtnActive]} onPress={() => setGoal('Gain Muscle')}>
-          <Text style={[styles.objectiveText, goal === 'Gain Muscle' && styles.objectiveTextActive]}>{t('gainMuscle')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.objectiveBtn, {backgroundColor: COLORS.surface}, goal === 'Gain Weight' && styles.objectiveBtnActive]} onPress={() => setGoal('Gain Weight')}>
-          <Text style={[styles.objectiveText, goal === 'Gain Weight' && styles.objectiveTextActive]}>{t('gainWeight')}</Text>
-        </TouchableOpacity>
-      </View>
-
-      <View style={styles.gridRow}>
-        <View style={styles.gridCol}>
-           <Text style={styles.label}>{t('age')}</Text>
-           <TextInput style={styles.input} value={age} onChangeText={setAge} keyboardType="numeric" placeholder="25" placeholderTextColor={COLORS.textDim} />
+          <View style={styles.gridCol}>
+             <Text style={styles.label}>{t('height')}</Text>
+             <View style={styles.inputWithIcon}>
+                <TextInput style={styles.gridInput} value={height} onChangeText={setHeight} keyboardType="numeric" placeholder="175" placeholderTextColor={COLORS.textDim} />
+             </View>
+          </View>
         </View>
-        <View style={styles.gridCol}>
-           <Text style={styles.label}>{t('height')}</Text>
-           <View style={styles.inputWithIcon}>
-              <TextInput style={styles.gridInput} value={height} onChangeText={setHeight} keyboardType="numeric" placeholder="175" placeholderTextColor={COLORS.textDim} />
-           </View>
+
+        <Text style={styles.label}>{t('gender')}</Text>
+        <View style={{flexDirection: 'row', gap: 8, marginBottom: 8}}>
+          <TouchableOpacity style={[styles.objectiveBtn, {backgroundColor: COLORS.surface}, gender === 'Male' && styles.objectiveBtnActive]} onPress={() => setGender('Male')}>
+            <Text style={[styles.objectiveText, gender === 'Male' && styles.objectiveTextActive]}>{t('male')}</Text>
+          </TouchableOpacity>
+          <TouchableOpacity style={[styles.objectiveBtn, {backgroundColor: COLORS.surface}, gender === 'Female' && styles.objectiveBtnActive]} onPress={() => setGender('Female')}>
+            <Text style={[styles.objectiveText, gender === 'Female' && styles.objectiveTextActive]}>{t('female')}</Text>
+          </TouchableOpacity>
         </View>
-      </View>
 
-      <Text style={styles.label}>{t('gender')}</Text>
-      <View style={{flexDirection: 'row', gap: 8, marginBottom: 8}}>
-        <TouchableOpacity style={[styles.objectiveBtn, {backgroundColor: COLORS.surface}, gender === 'Male' && styles.objectiveBtnActive]} onPress={() => setGender('Male')}>
-          <Text style={[styles.objectiveText, gender === 'Male' && styles.objectiveTextActive]}>{t('male')}</Text>
+         {!editingId && (
+            <>
+             <Text style={styles.label}>{t('currentWeight')}</Text>
+             <TextInput style={styles.input} value={currentWeight} onChangeText={setCurrentWeight} keyboardType="numeric" placeholder={t('currentWeight')} placeholderTextColor={COLORS.textDim} />
+            </>
+         )}
+
+        <Text style={styles.label}>{t('manualTargetWeight')}</Text>
+        <TextInput style={styles.input} value={targetWeight} onChangeText={setTargetWeight} keyboardType="numeric" placeholder={t('autoCalculatePlaceholder')} placeholderTextColor={COLORS.textDim} />
+
+        <Text style={styles.label}>{t('phone')}</Text>
+        <TextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="+855 99 XXX XXX" placeholderTextColor={COLORS.textDim} />
+
+        <Text style={styles.label}>{t('email')}</Text>
+        <TextInput style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" placeholder="alex.j@email.com" placeholderTextColor={COLORS.textDim} />
+        
+        <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isSaving}>
+          <Ionicons name="checkmark" size={20} color="#000" style={{marginRight: 8}}/>
+          <Text style={styles.saveBtnText}>{isSaving ? 'Saving...' : (editingId ? t('saveEdits') : t('saveClient'))}</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.objectiveBtn, {backgroundColor: COLORS.surface}, gender === 'Female' && styles.objectiveBtnActive]} onPress={() => setGender('Female')}>
-          <Text style={[styles.objectiveText, gender === 'Female' && styles.objectiveTextActive]}>{t('female')}</Text>
-        </TouchableOpacity>
-      </View>
 
-       {!editingId && (
-          <>
-           <Text style={styles.label}>{t('currentWeight')}</Text>
-           <TextInput style={styles.input} value={currentWeight} onChangeText={setCurrentWeight} keyboardType="numeric" placeholder={t('currentWeight')} placeholderTextColor={COLORS.textDim} />
-          </>
-       )}
-
-      <Text style={styles.label}>{t('manualTargetWeight')}</Text>
-      <TextInput style={styles.input} value={targetWeight} onChangeText={setTargetWeight} keyboardType="numeric" placeholder={t('autoCalculatePlaceholder')} placeholderTextColor={COLORS.textDim} />
-
-      <Text style={styles.label}>{t('phone')}</Text>
-      <TextInput style={styles.input} value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="+855 99 XXX XXX" placeholderTextColor={COLORS.textDim} />
-
-      <Text style={styles.label}>{t('email')}</Text>
-      <TextInput style={styles.input} value={email} onChangeText={setEmail} keyboardType="email-address" placeholder="alex.j@email.com" placeholderTextColor={COLORS.textDim} />
-      
-      <TouchableOpacity style={styles.saveBtn} onPress={handleSave} disabled={isSaving}>
-        <Ionicons name="checkmark" size={20} color="#000" style={{marginRight: 8}}/>
-        <Text style={styles.saveBtnText}>{isSaving ? 'Saving...' : (editingId ? t('saveEdits') : t('saveClient'))}</Text>
-      </TouchableOpacity>
-
-    </ScrollView>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 

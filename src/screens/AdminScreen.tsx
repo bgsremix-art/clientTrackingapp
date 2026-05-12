@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Alert, ActivityIndicator, KeyboardAvoidingView, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '../constants/theme';
 import { useAuth } from '../context/AuthContext';
@@ -54,11 +54,13 @@ export default function AdminScreen({ navigation }: any) {
   } = useClients();
 
   const [bakongToken, setBakongToken] = useState('');
+  const [bakongNote, setBakongNote] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     setBakongToken(bakongConfig.bakongToken || '');
-  }, [bakongConfig.bakongToken]);
+    setBakongNote(bakongConfig.bakongNote || '');
+  }, [bakongConfig.bakongToken, bakongConfig.bakongNote]);
 
   const stats = useMemo(() => {
     const now = Date.now();
@@ -160,7 +162,7 @@ export default function AdminScreen({ navigation }: any) {
       Alert.alert('Missing token', 'Please enter a Bakong token.');
       return;
     }
-    runAdminAction(() => updateBakongToken(bakongToken), 'Bakong token updated.');
+    runAdminAction(() => updateBakongToken(bakongToken, bakongNote), 'Bakong token and note updated.');
   };
 
   const openUsers = (filter: AdminUserFilter, title: string) => {
@@ -178,8 +180,15 @@ export default function AdminScreen({ navigation }: any) {
   }
 
   return (
-    <View style={styles.container}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      style={{ flex: 1 }}
+    >
+      <ScrollView 
+        style={styles.container} 
+        contentContainerStyle={styles.content}
+        keyboardShouldPersistTaps="handled"
+      >
         <View style={styles.headerRow}>
           <Text style={styles.headerTitle}>Admin</Text>
           <TouchableOpacity style={styles.iconBtn} onPress={refreshAdminUsers} disabled={saving}>
@@ -329,14 +338,24 @@ export default function AdminScreen({ navigation }: any) {
           multiline
           autoCapitalize="none"
         />
+        
+        <Text style={[styles.helperText, { marginBottom: 4, marginTop: 16 }]}>Bakong Expiry Note (e.g. Expires Dec 2026)</Text>
+        <TextInput
+          style={styles.input}
+          value={bakongNote}
+          onChangeText={setBakongNote}
+          placeholder="e.g. Expires 31 Dec 2026"
+          placeholderTextColor={COLORS.textDim}
+        />
+
         <Text style={styles.helperText}>Last updated: {formatDate(bakongConfig.updatedAt)}</Text>
         <TouchableOpacity style={styles.primaryBtn} onPress={saveBakong} disabled={saving}>
-          <Text style={styles.primaryBtnText}>Save Bakong Token</Text>
+          <Text style={styles.primaryBtnText}>Save Bakong Token & Note</Text>
         </TouchableOpacity>
       </View>
 
       </ScrollView>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

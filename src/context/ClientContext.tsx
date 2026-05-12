@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from 'react';
 import { collection, collectionGroup, deleteField, doc, getDoc, getDocs, onSnapshot, setDoc, deleteDoc } from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { db } from '../config/firebase';
 import { useAuth } from './AuthContext';
@@ -25,7 +26,7 @@ type ClientContextType = {
   updateUserSubscription: (uid: string, subscriptionExpiry?: string, trialStartedAt?: string) => Promise<void>;
   deleteUserData: (uid: string) => Promise<void>;
   updateAdminAppConfig: (config: AdminAppConfig) => Promise<void>;
-  updateBakongToken: (token: string) => Promise<void>;
+  updateBakongToken: (token: string, note?: string) => Promise<void>;
   t: (key: string) => string;
   addClient: (client: Client) => void;
   editClient: (client: Client) => void;
@@ -225,7 +226,13 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
             ...data,
             trialStartedAt: new Date().toISOString()
           };
-          setSettings(initializedSettings);
+          setSettings(prev => ({
+            ...prev,
+            ...initializedSettings,
+            gymLogo: prev.gymLogo,
+            gymName: prev.gymName,
+            trainerName: prev.trainerName,
+          }));
           setDoc(profileRef, {
             trialStartedAt: initializedSettings.trialStartedAt,
             subscriptionExpiry: initializedSettings.subscriptionExpiry || ''
@@ -234,7 +241,14 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
             trialStartedAt: initializedSettings.trialStartedAt
           }, { merge: true });
         } else {
-          setSettings(data);
+          setSettings(prev => ({
+            ...prev,
+            ...data,
+            // Ensure local branding is never overwritten by Firestore
+            gymLogo: prev.gymLogo,
+            gymName: prev.gymName,
+            trainerName: prev.trainerName,
+          }));
           setDoc(profileRef, {
             trialStartedAt: data.trialStartedAt || '',
             subscriptionExpiry: data.subscriptionExpiry || ''
@@ -251,7 +265,13 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         if (shouldStartTrial) {
           initialSettings.trialStartedAt = new Date().toISOString();
         }
-        setSettings(initialSettings);
+        setSettings(prev => ({
+          ...prev,
+          ...initialSettings,
+          gymLogo: prev.gymLogo,
+          gymName: prev.gymName,
+          trainerName: prev.trainerName,
+        }));
         setSettingsLoaded(true);
         setDoc(profileRef, {
           trialStartedAt: initialSettings.trialStartedAt || '',
@@ -276,6 +296,15 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
       setAttendance(snap.docs.map(d => d.data() as AttendanceRecord));
     });
 
+    const unsubStorage = onSnapshot(collection(db, 'users', uid, 'storage_uploads'), (snap) => {
+      const storageBytes = snap.docs.reduce((total, uploadDoc) => total + (Number(uploadDoc.data().bytes) || 0), 0);
+      setDoc(profileRef, { 
+        storageBytes, 
+        storageUploadCount: snap.size,
+        lastActiveAt: new Date().toISOString() 
+      }, { merge: true });
+    });
+
     return () => {
       unsubProfile();
       unsubClients();
@@ -283,8 +312,70 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
       unsubSettings();
       unsubIngredients();
       unsubAttendance();
+      unsubStorage();
     };
   }, [user, user?.emailVerified]);
+
+  // AUTO-UPDATE USAGE STATS ON PROFILE FOR REAL-TIME ADMIN VIEW
+  useEffect(() => {
+    if (!user || !settingsLoaded) return;
+    
+    const updateUsageStats = async () => {
+      const uid = user.uid;
+      const profileRef = doc(db, 'users', uid);
+      
+      const firestoreBytes = 
+        estimateFirestoreDocBytes(`users/${uid}`, userProfile) +
+        estimateFirestoreDocBytes(`users/${uid}/settings/app_settings`, settings) +
+        clients.reduce((t, c) => t + estimateFirestoreDocBytes(`users/${uid}/clients/${c.id}`, c), 0) +
+        records.reduce((t, r) => t + estimateFirestoreDocBytes(`users/${uid}/records/${r.id}`, r), 0) +
+        ingredients.reduce((t, i) => t + estimateFirestoreDocBytes(`users/${uid}/ingredients/${i.id}`, i), 0) +
+        attendance.reduce((t, a) => t + estimateFirestoreDocBytes(`users/${uid}/attendance/${a.id}`, a), 0);
+
+      const dailyReads = (clients.length * 25) + (records.length * 10) + (ingredients.length * 2) + (attendance.length * 10) + 150;
+      const dailyWrites = Math.max(5, Math.floor(records.length / 3) + Math.floor(attendance.length / 3) + 10);
+
+      await setDoc(profileRef, {
+        clientCount: clients.length,
+        recordCount: records.length,
+        ingredientCount: ingredients.length,
+        attendanceCount: attendance.length,
+        firestoreBytes,
+        firestoreDocCount: 2 + clients.length + records.length + ingredients.length + attendance.length,
+        dailyReads,
+        dailyWrites,
+        lastActiveAt: new Date().toISOString()
+      }, { merge: true });
+    };
+
+    const timeout = setTimeout(updateUsageStats, 3000); 
+    return () => clearTimeout(timeout);
+  }, [user, clients.length, records.length, ingredients.length, attendance.length, settingsLoaded]);
+
+  // Load and sync local-only branding (Gym Logo, Gym Name, Trainer Name)
+  useEffect(() => {
+    const loadLocalBranding = async () => {
+      if (!user) return;
+      try {
+        const localData = await AsyncStorage.getItem(`branding_${user.uid}`);
+        if (localData) {
+          const branding = JSON.parse(localData);
+          console.log(`Loaded local branding for ${user.uid}:`, branding);
+          setSettings(prev => ({
+            ...prev,
+            gymName: branding.gymName,
+            trainerName: branding.trainerName,
+            gymLogo: branding.gymLogo,
+          }));
+        } else {
+          console.log(`No local branding found for ${user.uid}`);
+        }
+      } catch (e) {
+        console.error('Failed to load local branding:', e);
+      }
+    };
+    loadLocalBranding();
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -339,20 +430,39 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
     });
   };
 
-  const updateSettings = (s: AppSettings) => {
-    if (!user) return;
-    setDoc(doc(db, 'users', user.uid, 'settings', 'app_settings'), s);
-    setDoc(doc(db, 'users', user.uid), {
-      trialStartedAt: s.trialStartedAt || '',
-      subscriptionExpiry: s.subscriptionExpiry || '',
-    }, { merge: true });
-  };
-
   useEffect(() => {
     if (!user?.emailVerified || !settingsLoaded || settings.trialStartedAt) return;
 
     updateSettings({ ...settings, trialStartedAt: new Date().toISOString() });
   }, [user?.emailVerified, settingsLoaded, settings.trialStartedAt]);
+
+  const updateSettings = async (s: AppSettings) => {
+    setSettings(s);
+    await AsyncStorage.setItem('app_settings', JSON.stringify(s));
+
+    if (user) {
+      // PERSIST BRANDING LOCALLY ONLY
+      const branding = {
+        gymName: s.gymName || '',
+        trainerName: s.trainerName || '',
+        gymLogo: s.gymLogo || ''
+      };
+      await AsyncStorage.setItem(`branding_${user.uid}`, JSON.stringify(branding));
+
+      // STRIP BRANDING FROM CLOUD SAVE
+      const { gymLogo, gymName, trainerName, ...cloudSettings } = s;
+      await setDoc(doc(db, 'users', user.uid, 'settings', 'app_settings'), cloudSettings);
+      
+      // Update user root profile and explicitly remove branding fields from cloud
+      await setDoc(doc(db, 'users', user.uid), { 
+        gymName: deleteField(),
+        trainerName: deleteField(),
+        gymLogo: deleteField(),
+        trialStartedAt: s.trialStartedAt || '',
+        subscriptionExpiry: s.subscriptionExpiry || '',
+      }, { merge: true });
+    }
+  };
 
   useEffect(() => {
     if (!isAdmin) {
@@ -364,8 +474,9 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
       setBakongConfig(snap.exists() ? (snap.data() as BakongAdminConfig) : {});
     });
 
-    const unsubUsers = onSnapshot(collection(db, 'users'), () => {
-      refreshAdminUsers();
+    const unsubUsers = onSnapshot(collection(db, 'users'), (snap) => {
+      const profiles = snap.docs.map(d => d.data() as UserProfile);
+      setAdminUsers(profiles.sort((a, b) => new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()));
     });
 
     return () => {
@@ -440,7 +551,10 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         ingredientsSnap.docs.filter(ingredientDoc => !!(ingredientDoc.data() as FoodLibraryItem).imageUri).length;
       const untrackedPhotoCount = Math.max(cloudPhotoCount - storageUploadsSnap.size, 0);
 
-      return {
+      const dailyReads = (clientsSnap.size * 25) + (recordsSnap.size * 10) + (ingredientsSnap.size * 2) + (attendanceSnap.size * 10) + 150;
+      const dailyWrites = Math.max(5, Math.floor(recordsSnap.size / 3) + Math.floor(attendanceSnap.size / 3) + 10);
+
+      const updatedProfile: UserProfile = {
         ...profile,
         uid: profile.uid || uid,
         email: profile.email || '',
@@ -460,9 +574,13 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         storageBytes,
         storageUploadCount: storageUploadsSnap.size,
         untrackedPhotoCount,
-        dailyReads: (clientsSnap.size * 10) + (recordsSnap.size * 2) + ingredientsSnap.size + attendanceSnap.size + 20,
-        dailyWrites: Math.max(1, Math.floor(recordsSnap.size / 7) + Math.floor(attendanceSnap.size / 7) + 5),
-      } as UserProfile;
+        dailyReads,
+        dailyWrites,
+      };
+
+      // Save synced stats back to Firestore so real-time listeners get them
+      await setDoc(doc(db, 'users', uid), updatedProfile, { merge: true });
+      return updatedProfile;
     }));
     setAdminUsers(profiles.filter((profile): profile is UserProfile => !!profile).sort((a, b) => new Date(b.lastActiveAt).getTime() - new Date(a.lastActiveAt).getTime()));
   };
@@ -517,10 +635,11 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
     ]);
   };
 
-  const updateBakongToken = async (token: string) => {
+  const updateBakongToken = async (token: string, note?: string) => {
     assertAdmin();
     await setDoc(doc(db, 'admin', 'config'), {
       bakongToken: token.trim(),
+      bakongNote: note?.trim() || '',
       updatedAt: new Date().toISOString(),
       updatedBy: user?.uid,
     }, { merge: true });

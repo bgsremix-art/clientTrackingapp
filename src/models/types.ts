@@ -52,6 +52,9 @@ export interface AppSettings {
   language: 'en' | 'km';
   subscriptionExpiry?: string; // ISO string
   trialStartedAt?: string; // ISO string
+  gymLogo?: string;
+  gymName?: string;
+  trainerName?: string;
 }
 
 export interface UserProfile {
@@ -88,6 +91,7 @@ export interface AdminAppConfig {
 
 export interface BakongAdminConfig {
   bakongToken?: string;
+  bakongNote?: string;
   updatedAt?: string;
   updatedBy?: string;
 }

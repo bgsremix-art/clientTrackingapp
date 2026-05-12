@@ -15,10 +15,10 @@ export default function GenerateMealPlanScreen({ navigation, route }: any) {
 
    const [activeTab, setActiveTab] = useState('Lunch');
    const [meal, setMeal] = useState<any>({ p: null, c: null, v: null });
-   
+
    const [swapModalVisible, setSwapModalVisible] = useState(false);
    const [activeCategory, setActiveCategory] = useState<'Protein' | 'Carbs' | 'Veggies' | null>(null);
-   const [sharingPdf, setSharingPdf] = useState(false);
+   const [isSharingPdf, setIsSharingPdf] = useState(false);
    const [shareOptionsVisible, setShareOptionsVisible] = useState(false);
    const [isCapturingMealPlan, setIsCapturingMealPlan] = useState(false);
    const mealPlanRef = useRef<View>(null);
@@ -49,7 +49,7 @@ export default function GenerateMealPlanScreen({ navigation, route }: any) {
    const tdee = bmr * 1.375; // Light activity
 
    const modifier = (client.customCalorieModifier !== undefined && client.customCalorieModifier !== null)
-      ? client.customCalorieModifier 
+      ? client.customCalorieModifier
       : (client.goal === 'Gain Weight' ? settings.gainWeightCals : client.goal === 'Gain Muscle' ? settings.gainMuscleCals : client.goal === 'Lose Weight' ? settings.loseWeightCals : 0);
 
    const cals = Math.max(1200, Math.round(tdee + modifier));
@@ -109,57 +109,70 @@ export default function GenerateMealPlanScreen({ navigation, route }: any) {
       totalMealCals,
       labels: {
          generated: t('reportGeneratedLabel'),
-         dateLocale,
+         preparedFor: t('reportPreparedFor'),
+         date: t('reportDate'),
          generatedBy: t('reportGeneratedBy'),
-         client: t('clientName'),
-         name: t('clientName'),
-         goal: t('goal'),
          mealPlan: t('mealPlanTitle'),
-         dailyCalories: t('recommendedDaily'),
-         water: t('recommendedWater'),
-         type: t('reportCategory'),
+         progressReport: t('progressReportTitle'),
+         summary: t('reportSummary'),
+         change: t('reportChange'),
+         weight: t('reportWeight'),
+         category: t('reportCategory'),
          ingredient: t('reportIngredient'),
          portion: t('reportPortion'),
-         baseCalories: t('caloriesKcal'),
-         protein: t('protein'),
-         carbs: t('carbs'),
-         veggieFruit: t('veggieFruit'),
-         mealTotals: t('totalMealCals'),
-         calories: t('caloriesKcal'),
-         fats: t('fats'),
-         notes: t('notes'),
-         noteWater: t('noteWater'),
-         noteSleep: t('noteSleep'),
-         noteExercise: t('noteExercise'),
+         dailyTargets: t('reportDailyTargets'),
+         nutritionTarget: t('reportNutritionTarget'),
+         dateLocale: dateLocale,
       },
+      branding: {
+         gymLogo: settings.gymLogo,
+         gymName: settings.gymName,
+         trainerName: settings.trainerName
+      }
    });
 
    const handleSharePdf = async () => {
-      setSharingPdf(true);
+      setIsSharingPdf(true);
       try {
-         await shareMealPlanPdf(getMealPlanPdfParams());
+         const p = getMealPlanPdfParams();
+         await shareMealPlanPdf({
+            ...p,
+            meal: { p: p.proteinItem, c: p.carbItem, v: p.veggieItem },
+            cals: p.dailyCalories,
+            waterLiters: parseFloat(p.waterLiters) || 0
+         });
       } finally {
-         setSharingPdf(false);
+         setIsSharingPdf(false);
       }
    };
 
    const handleSavePdf = async () => {
-      setSharingPdf(true);
+      setIsSharingPdf(true);
       try {
-         await saveMealPlanPdf(getMealPlanPdfParams());
+         const p = getMealPlanPdfParams();
+         await saveMealPlanPdf({
+            ...p,
+            meal: { p: p.proteinItem, c: p.carbItem, v: p.veggieItem },
+            cals: p.dailyCalories,
+            waterLiters: parseFloat(p.waterLiters) || 0
+         });
+         Alert.alert(t('success'), t('done'));
+      } catch (e: any) {
+         Alert.alert("Error", e.message);
       } finally {
-         setSharingPdf(false);
+         setIsSharingPdf(false);
       }
    };
 
    const prepareMealPlanImageCapture = async () => {
       setIsCapturingMealPlan(true);
-      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      // Increased delay to 800ms like ClientDetailScreen to allow assets (logo/images) to load
+      await new Promise(resolve => setTimeout(resolve, 800));
    };
 
    const handleShareImage = async () => {
       if (!mealPlanRef.current) return;
-      setSharingPdf(true);
+      setIsSharingPdf(true);
       try {
          await prepareMealPlanImageCapture();
          const uri = await captureRef(mealPlanRef.current, {
@@ -167,29 +180,33 @@ export default function GenerateMealPlanScreen({ navigation, route }: any) {
             quality: 0.92,
          });
          await shareImageFile(uri, `${getSafeFileName(client.name, 'meal-plan')}.jpg`);
+         Alert.alert(t('success'), t('done'));
       } catch (error: any) {
          Alert.alert('Image Error', error.message || 'Failed to create image.');
       } finally {
          setIsCapturingMealPlan(false);
-         setSharingPdf(false);
+         setIsSharingPdf(false);
       }
    };
 
    const handleSaveImage = async () => {
       if (!mealPlanRef.current) return;
-      setSharingPdf(true);
+      setIsSharingPdf(true);
       try {
          await prepareMealPlanImageCapture();
          const uri = await captureRef(mealPlanRef.current, {
             format: 'jpg',
             quality: 0.92,
          });
-         await saveImageFile(uri, `${getSafeFileName(client.name, 'meal-plan')}.jpg`);
+         const success = await saveImageFile(uri, `${getSafeFileName(client.name, 'meal-plan')}.jpg`);
+         if (success) {
+            Alert.alert(t('success'), t('done'));
+         }
       } catch (error: any) {
          Alert.alert('Image Error', error.message || 'Failed to save image.');
       } finally {
          setIsCapturingMealPlan(false);
-         setSharingPdf(false);
+         setIsSharingPdf(false);
       }
    };
 
@@ -199,220 +216,239 @@ export default function GenerateMealPlanScreen({ navigation, route }: any) {
    };
 
    return (
-      <View style={{flex: 1, backgroundColor: COLORS.background}}>
-      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }}>
-      <View style={styles.header}>
-         <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color={COLORS.text} /></TouchableOpacity>
-         <Text style={styles.headerTitle}>{t('mealPlanTitle')}</Text>
-         <View style={{width: 24}} />
-      </View>
-
-      <View ref={mealPlanRef} collapsable={false} style={styles.captureArea}>
-      {isCapturingMealPlan ? (
-         <View style={styles.reportSheet}>
-            <View style={styles.reportHeader}>
-               <View>
-                  <Text style={styles.reportKicker}>{t('reportBrand')}</Text>
-                  <Text style={styles.reportTitle}>{t('mealPlanTitle')}</Text>
-                  <Text style={styles.reportSubtle}>{t('reportPreparedFor')} {client.name || t('clientName')}</Text>
-               </View>
-               <View style={styles.reportDateBlock}>
-                  <Text style={styles.reportDateLabel}>{t('reportDate')}</Text>
-                  <Text style={styles.reportDateText}>{generatedDate}</Text>
-               </View>
+      <View style={{ flex: 1, backgroundColor: COLORS.background }}>
+         <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 60 }}>
+            <View style={styles.header}>
+               <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color={COLORS.text} /></TouchableOpacity>
+               <Text style={styles.headerTitle}>{t('mealPlanTitle')}</Text>
+               <View style={{ width: 24 }} />
             </View>
 
-            <View style={styles.reportClientRow}>
-               <View style={styles.reportClientInfo}>
-                  <Text style={styles.reportClientName}>{client.name || t('clientName')}</Text>
-                  <Text style={styles.reportSubtle}>{t('goal')}: {displayGoal}  |  {t('height')}: {client.heightCM} cm</Text>
-                  <Text style={styles.reportGoalLine}>{displayMealName} {t('reportNutritionTarget')}</Text>
-               </View>
+            <View ref={mealPlanRef} collapsable={false} style={styles.captureArea}>
+               {isCapturingMealPlan ? (
+                  <View style={styles.reportSheet}>
+                     <View style={styles.reportHeader}>
+                        <View style={{ flex: 1 }}>
+                           <Text style={styles.reportKicker}>{t('reportBrand')}</Text>
+                           <Text style={styles.reportTitle}>{t('mealPlanTitle')}</Text>
+                           <Text style={styles.reportSubtle}>{t('reportPreparedFor')} {client.name || t('clientName')}</Text>
+                           {(settings.gymName || settings.trainerName) && (
+                              <View style={{ marginTop: 8 }}>
+                                 {settings.gymName && <Text style={{ color: COLORS.primary, fontSize: 14, fontWeight: 'bold' }}>{settings.gymName}</Text>}
+                                 {settings.trainerName && <Text style={{ color: COLORS.textDim, fontSize: 12 }}>{t('trainer')}: {settings.trainerName}</Text>}
+                              </View>
+                           )}
+                        </View>
+                        {settings.gymLogo && (
+                           <Image 
+                              source={{ uri: settings.gymLogo }} 
+                              style={{ width: 60, height: 60, borderRadius: 8, marginLeft: 16 }} 
+                              resizeMode="contain"
+                           />
+                        )}
+                        <View style={[styles.reportDateBlock, { marginLeft: 16 }]}>
+                           <Text style={styles.reportDateLabel}>{t('reportDate')}</Text>
+                           <Text style={styles.reportDateText}>{generatedDate}</Text>
+                        </View>
+                     </View>
+
+                     <View style={styles.reportClientRow}>
+                        <View style={styles.reportClientInfo}>
+                           <Text style={styles.reportClientName}>{client.name || t('clientName')}</Text>
+                           <Text style={styles.reportSubtle}>{t('goal')}: {displayGoal}  |  {t('height')}: {client.heightCM} cm</Text>
+                           <Text style={styles.reportGoalLine}>{displayMealName} {t('reportNutritionTarget')}</Text>
+                        </View>
+                     </View>
+
+                     <Text style={styles.reportSectionTitle}>{t('reportDailyTargets')}</Text>
+                     <View style={styles.reportGrid}>
+                        <View style={styles.reportMetric}><Text style={styles.reportLabel}>{t('recommendedDaily')}</Text><Text style={styles.reportValue}>{cals} kcal</Text></View>
+                        <View style={styles.reportMetric}><Text style={styles.reportLabel}>{t('recommendedWater')}</Text><Text style={styles.reportValue}>{waterLiters} L</Text></View>
+                        <View style={styles.reportMetric}><Text style={styles.reportLabel}>{t('totalMealCals')}</Text><Text style={styles.reportValue}>{totalMealCals} kcal</Text></View>
+                        <View style={styles.reportMetric}><Text style={styles.reportLabel}>{t('basedOnGoal')}</Text><Text style={styles.reportValueSmall}>{displayGoal}</Text></View>
+                     </View>
+
+                     <View style={styles.reportMacroRow}>
+                        <View style={styles.reportMacro}><Text style={styles.reportLabel}>{t('protein')}</Text><Text style={styles.reportValueAccent}>{totalProtein}g</Text></View>
+                        <View style={styles.reportMacro}><Text style={styles.reportLabel}>{t('carbs')}</Text><Text style={styles.reportValueAccent}>{totalCarbs}g</Text></View>
+                        <View style={styles.reportMacro}><Text style={styles.reportLabel}>{t('fats')}</Text><Text style={styles.reportValueAccent}>{totalFats}g</Text></View>
+                     </View>
+
+                     <Text style={styles.reportSectionTitle}>{t('currentPlan')}</Text>
+                     <View style={styles.reportMealTable}>
+                        <View style={styles.reportTableHeader}>
+                           <Text style={[styles.reportTh, { flex: 1.1 }]}>{t('reportCategory')}</Text>
+                           <Text style={[styles.reportTh, { flex: 1.5 }]}>{t('reportIngredient')}</Text>
+                           <Text style={styles.reportTh}>{t('reportPortion')}</Text>
+                        </View>
+                        <View style={styles.reportTableRow}>
+                           <Text style={[styles.reportTd, { flex: 1.1 }]}>{t('protein')}</Text>
+                           <Text style={[styles.reportTd, { flex: 1.5 }]}>{meal.p?.name || 'N/A'}</Text>
+                           <Text style={styles.reportTd}>{proteinGrams}g</Text>
+                        </View>
+                        <View style={styles.reportTableRow}>
+                           <Text style={[styles.reportTd, { flex: 1.1 }]}>{t('carbs')}</Text>
+                           <Text style={[styles.reportTd, { flex: 1.5 }]}>{meal.c?.name || 'N/A'}</Text>
+                           <Text style={styles.reportTd}>{carbGrams}g</Text>
+                        </View>
+                        <View style={styles.reportTableRow}>
+                           <Text style={[styles.reportTd, { flex: 1.1 }]}>{t('veggieFruit')}</Text>
+                           <Text style={[styles.reportTd, { flex: 1.5 }]}>{meal.v?.name || 'N/A'}</Text>
+                           <Text style={styles.reportTd}>{veggieGrams}g</Text>
+                        </View>
+                     </View>
+
+                     <View style={styles.reportNotes}>
+                        <Text style={styles.reportSectionTitle}>{t('mealPlanNote')}</Text>
+                        <Text style={styles.reportNoteText}>- {t('noteWater')}</Text>
+                        <Text style={styles.reportNoteText}>- {t('noteSleep')}</Text>
+                        <Text style={styles.reportNoteText}>- {t('noteExercise')}</Text>
+                     </View>
+                     <Text style={styles.reportFooter}>{t('reportGeneratedBy')}</Text>
+                  </View>
+               ) : (
+                  <>
+                     <View style={styles.calsCard}>
+                        <Text style={styles.calsSub}>{t('recommendedDaily')}: <Text style={styles.calsValue}>{cals} kcal</Text></Text>
+                        <Text style={styles.calsSub}>{t('recommendedWater')}: <Text style={styles.calsValue}>{waterLiters} L</Text></Text>
+                        <Text style={styles.subCals}>({t('basedOnGoal')}: {client.goal})</Text>
+                     </View>
+
+                     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll} contentContainerStyle={{ gap: 16, paddingHorizontal: 24 }}>
+                        {['Breakfast', 'Lunch', 'Dinner', 'Snacks'].map(tab => {
+                           const mappedTab = tab === 'Breakfast' ? t('breakfast') : tab === 'Lunch' ? t('lunch') : tab === 'Dinner' ? t('dinner') : t('snacks');
+                           return (
+                              <TouchableOpacity key={tab} style={[styles.tabBtn, activeTab === tab && styles.tabBtnActive]} onPress={() => { setActiveTab(tab); generateNew(); }}>
+                                 <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{mappedTab}</Text>
+                              </TouchableOpacity>
+                           );
+                        })}
+                     </ScrollView>
+
+                     <View style={styles.planContainer}>
+                        <Text style={styles.colTitle}>{t('currentPlan')}</Text>
+
+                        <Text style={styles.macroLabel}>{t('protein')}</Text>
+                        <TouchableOpacity style={styles.planItem} onPress={() => handleSwap('Protein')}>
+                           {renderMealImg(meal.p)}
+                           <Text style={styles.planText}>{meal.p?.name} × {proteinGrams}g</Text>
+                           {!isCapturingMealPlan && <Ionicons name="sync" size={16} color={COLORS.primary} />}
+                        </TouchableOpacity>
+
+                        <Text style={styles.macroLabel}>{t('carbs')}</Text>
+                        <TouchableOpacity style={styles.planItem} onPress={() => handleSwap('Carbs')}>
+                           {renderMealImg(meal.c)}
+                           <Text style={styles.planText}>{meal.c?.name} × {carbGrams}g</Text>
+                           {!isCapturingMealPlan && <Ionicons name="sync" size={16} color={COLORS.primary} />}
+                        </TouchableOpacity>
+
+                        <Text style={styles.macroLabel}>{t('veggieFruit')}</Text>
+                        <TouchableOpacity style={styles.planItem} onPress={() => handleSwap('Veggies')}>
+                           {renderMealImg(meal.v)}
+                           <Text style={styles.planText}>{meal.v?.name} × {veggieGrams}g</Text>
+                           {!isCapturingMealPlan && <Ionicons name="sync" size={16} color={COLORS.primary} />}
+                        </TouchableOpacity>
+                     </View>
+
+                     <View style={styles.macroSummaryBox}>
+                        <Text style={styles.macroSummaryText}>{t('protein')}: {totalProtein}g | {t('carbs')}: {totalCarbs}g | {t('fats')}: {totalFats}g</Text>
+                        <Text style={[styles.macroSummaryText, { color: COLORS.primary, fontWeight: 'bold', marginTop: 4 }]}>{t('totalMealCals')}: {totalMealCals} kcal</Text>
+                     </View>
+
+                     <View style={styles.directionsCard}>
+                        <Text style={styles.directionsTitle}>{t('mealPlanNote')}</Text>
+                        <Text style={styles.directionsText}>• {t('noteWater')}</Text>
+                        <Text style={styles.directionsText}>• {t('noteSleep')}</Text>
+                        <Text style={styles.directionsText}>• {t('noteExercise')}</Text>
+
+                        <View style={styles.btnRow}>
+                           <TouchableOpacity style={styles.btnPdf} onPress={() => setShareOptionsVisible(true)} disabled={isSharingPdf}>
+                              {isSharingPdf ? (
+                                 <ActivityIndicator color={COLORS.primary} />
+                              ) : (
+                                 <>
+                                    <Ionicons name="document-text-outline" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+                                    <Text style={styles.btnSecondaryText}>PDF</Text>
+                                 </>
+                              )}
+                           </TouchableOpacity>
+                           <TouchableOpacity style={styles.btnSecondary} onPress={generateNew}>
+                              <Ionicons name="refresh" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
+                              <Text style={styles.btnSecondaryText}>{t('reRoll')}</Text>
+                           </TouchableOpacity>
+                           <TouchableOpacity style={styles.btnPrimary} onPress={() => navigation.goBack()}>
+                              <Ionicons name="checkmark-circle" size={18} color="#000" style={{ marginRight: 6 }} />
+                              <Text style={styles.btnPrimaryText}>{t('confirmMealPlan')}</Text>
+                           </TouchableOpacity>
+                        </View>
+                     </View>
+                  </>
+               )}
             </View>
+         </ScrollView>
 
-            <Text style={styles.reportSectionTitle}>{t('reportDailyTargets')}</Text>
-            <View style={styles.reportGrid}>
-               <View style={styles.reportMetric}><Text style={styles.reportLabel}>{t('recommendedDaily')}</Text><Text style={styles.reportValue}>{cals} kcal</Text></View>
-               <View style={styles.reportMetric}><Text style={styles.reportLabel}>{t('recommendedWater')}</Text><Text style={styles.reportValue}>{waterLiters} L</Text></View>
-               <View style={styles.reportMetric}><Text style={styles.reportLabel}>{t('totalMealCals')}</Text><Text style={styles.reportValue}>{totalMealCals} kcal</Text></View>
-               <View style={styles.reportMetric}><Text style={styles.reportLabel}>{t('basedOnGoal')}</Text><Text style={styles.reportValueSmall}>{displayGoal}</Text></View>
-            </View>
+         <Modal visible={shareOptionsVisible} transparent animationType="fade" onRequestClose={() => setShareOptionsVisible(false)}>
+            <View style={styles.modalOverlayCenter}>
+               <View style={styles.shareModalCard}>
+                  <View style={styles.modalHeader}>
+                     <Text style={styles.modalTitle}>{t('reportShareMeal')}</Text>
+                     <TouchableOpacity onPress={() => setShareOptionsVisible(false)}>
+                        <Ionicons name="close" size={24} color={COLORS.textDim} />
+                     </TouchableOpacity>
+                  </View>
 
-            <View style={styles.reportMacroRow}>
-               <View style={styles.reportMacro}><Text style={styles.reportLabel}>{t('protein')}</Text><Text style={styles.reportValueAccent}>{totalProtein}g</Text></View>
-               <View style={styles.reportMacro}><Text style={styles.reportLabel}>{t('carbs')}</Text><Text style={styles.reportValueAccent}>{totalCarbs}g</Text></View>
-               <View style={styles.reportMacro}><Text style={styles.reportLabel}>{t('fats')}</Text><Text style={styles.reportValueAccent}>{totalFats}g</Text></View>
-            </View>
+                  <TouchableOpacity style={styles.shareActionBtn} onPress={() => runShareAction(handleShareImage)}>
+                     <Ionicons name="image-outline" size={20} color="#000" />
+                     <Text style={styles.shareActionText}>{t('reportShareImage')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.shareActionBtn} onPress={() => runShareAction(handleSaveImage)}>
+                     <Ionicons name="download-outline" size={20} color="#000" />
+                     <Text style={styles.shareActionText}>{t('reportSaveImage')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.shareActionBtn} onPress={() => runShareAction(handleSharePdf)}>
+                     <Ionicons name="document-text-outline" size={20} color="#000" />
+                     <Text style={styles.shareActionText}>{t('reportSharePdf')}</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity style={styles.shareActionBtn} onPress={() => runShareAction(handleSavePdf)}>
+                     <Ionicons name="folder-outline" size={20} color="#000" />
+                     <Text style={styles.shareActionText}>{t('reportSavePdf')}</Text>
+                  </TouchableOpacity>
 
-            <Text style={styles.reportSectionTitle}>{t('currentPlan')}</Text>
-            <View style={styles.reportMealTable}>
-               <View style={styles.reportTableHeader}>
-                  <Text style={[styles.reportTh, { flex: 1.1 }]}>{t('reportCategory')}</Text>
-                  <Text style={[styles.reportTh, { flex: 1.5 }]}>{t('reportIngredient')}</Text>
-                  <Text style={styles.reportTh}>{t('reportPortion')}</Text>
-               </View>
-               <View style={styles.reportTableRow}>
-                  <Text style={[styles.reportTd, { flex: 1.1 }]}>{t('protein')}</Text>
-                  <Text style={[styles.reportTd, { flex: 1.5 }]}>{meal.p?.name || 'N/A'}</Text>
-                  <Text style={styles.reportTd}>{proteinGrams}g</Text>
-               </View>
-               <View style={styles.reportTableRow}>
-                  <Text style={[styles.reportTd, { flex: 1.1 }]}>{t('carbs')}</Text>
-                  <Text style={[styles.reportTd, { flex: 1.5 }]}>{meal.c?.name || 'N/A'}</Text>
-                  <Text style={styles.reportTd}>{carbGrams}g</Text>
-               </View>
-               <View style={styles.reportTableRow}>
-                  <Text style={[styles.reportTd, { flex: 1.1 }]}>{t('veggieFruit')}</Text>
-                  <Text style={[styles.reportTd, { flex: 1.5 }]}>{meal.v?.name || 'N/A'}</Text>
-                  <Text style={styles.reportTd}>{veggieGrams}g</Text>
-               </View>
-            </View>
-
-            <View style={styles.reportNotes}>
-               <Text style={styles.reportSectionTitle}>{t('mealPlanNote')}</Text>
-               <Text style={styles.reportNoteText}>- {t('noteWater')}</Text>
-               <Text style={styles.reportNoteText}>- {t('noteSleep')}</Text>
-               <Text style={styles.reportNoteText}>- {t('noteExercise')}</Text>
-            </View>
-            <Text style={styles.reportFooter}>{t('reportGeneratedBy')}</Text>
-         </View>
-      ) : (
-      <>
-      <View style={styles.calsCard}>
-         <Text style={styles.calsSub}>{t('recommendedDaily')}: <Text style={styles.calsValue}>{cals} kcal</Text></Text>
-         <Text style={styles.calsSub}>{t('recommendedWater')}: <Text style={styles.calsValue}>{waterLiters} L</Text></Text>
-         <Text style={styles.subCals}>({t('basedOnGoal')}: {client.goal})</Text>
-      </View>
-
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll} contentContainerStyle={{ gap: 16, paddingHorizontal: 24 }}>
-         {['Breakfast', 'Lunch', 'Dinner', 'Snacks'].map(tab => {
-             const mappedTab = tab === 'Breakfast' ? t('breakfast') : tab === 'Lunch' ? t('lunch') : tab === 'Dinner' ? t('dinner') : t('snacks');
-             return (
-               <TouchableOpacity key={tab} style={[styles.tabBtn, activeTab === tab && styles.tabBtnActive]} onPress={() => { setActiveTab(tab); generateNew(); }}>
-                 <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>{mappedTab}</Text>
-               </TouchableOpacity>
-             );
-         })}
-      </ScrollView>
-
-         <View style={styles.planContainer}>
-            <Text style={styles.colTitle}>{t('currentPlan')}</Text>
-
-            <Text style={styles.macroLabel}>{t('protein')}</Text>
-            <TouchableOpacity style={styles.planItem} onPress={() => handleSwap('Protein')}>
-               {renderMealImg(meal.p)}
-               <Text style={styles.planText}>{meal.p?.name} × {proteinGrams}g</Text>
-               {!isCapturingMealPlan && <Ionicons name="sync" size={16} color={COLORS.primary} />}
-            </TouchableOpacity>
-
-            <Text style={styles.macroLabel}>{t('carbs')}</Text>
-            <TouchableOpacity style={styles.planItem} onPress={() => handleSwap('Carbs')}>
-               {renderMealImg(meal.c)}
-               <Text style={styles.planText}>{meal.c?.name} × {carbGrams}g</Text>
-               {!isCapturingMealPlan && <Ionicons name="sync" size={16} color={COLORS.primary} />}
-            </TouchableOpacity>
-
-            <Text style={styles.macroLabel}>{t('veggieFruit')}</Text>
-            <TouchableOpacity style={styles.planItem} onPress={() => handleSwap('Veggies')}>
-               {renderMealImg(meal.v)}
-               <Text style={styles.planText}>{meal.v?.name} × {veggieGrams}g</Text>
-               {!isCapturingMealPlan && <Ionicons name="sync" size={16} color={COLORS.primary} />}
-            </TouchableOpacity>
-         </View>
-
-         <View style={styles.macroSummaryBox}>
-            <Text style={styles.macroSummaryText}>{t('protein')}: {totalProtein}g | {t('carbs')}: {totalCarbs}g | {t('fats')}: {totalFats}g</Text>
-            <Text style={[styles.macroSummaryText, { color: COLORS.primary, fontWeight: 'bold', marginTop: 4 }]}>{t('totalMealCals')}: {totalMealCals} kcal</Text>
-         </View>
-
-         <View style={styles.directionsCard}>
-            <Text style={styles.directionsTitle}>{t('mealPlanNote')}</Text>
-            <Text style={styles.directionsText}>• {t('noteWater')}</Text>
-            <Text style={styles.directionsText}>• {t('noteSleep')}</Text>
-            <Text style={styles.directionsText}>• {t('noteExercise')}</Text>
-
-            <View style={styles.btnRow}>
-               <TouchableOpacity style={styles.btnPdf} onPress={() => setShareOptionsVisible(true)} disabled={sharingPdf}>
-                  {sharingPdf ? (
-                     <ActivityIndicator color={COLORS.primary} />
-                  ) : (
-                     <>
-                        <Ionicons name="document-text-outline" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
-                        <Text style={styles.btnSecondaryText}>PDF</Text>
-                     </>
-                  )}
-               </TouchableOpacity>
-               <TouchableOpacity style={styles.btnSecondary} onPress={generateNew}>
-                  <Ionicons name="refresh" size={18} color={COLORS.primary} style={{ marginRight: 6 }} />
-                  <Text style={styles.btnSecondaryText}>{t('reRoll')}</Text>
-               </TouchableOpacity>
-               <TouchableOpacity style={styles.btnPrimary} onPress={() => navigation.goBack()}>
-                  <Ionicons name="checkmark-circle" size={18} color="#000" style={{ marginRight: 6 }} />
-                  <Text style={styles.btnPrimaryText}>{t('confirmMealPlan')}</Text>
-               </TouchableOpacity>
-            </View>
-         </View>
-      </>
-      )}
-      </View>
-      </ScrollView>
-
-      <Modal visible={shareOptionsVisible} transparent animationType="fade" onRequestClose={() => setShareOptionsVisible(false)}>
-         <View style={styles.modalOverlayCenter}>
-            <View style={styles.shareModalCard}>
-               <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>{t('reportShareMeal')}</Text>
-                  <TouchableOpacity onPress={() => setShareOptionsVisible(false)}>
-                     <Ionicons name="close" size={24} color={COLORS.textDim} />
+                  <TouchableOpacity style={styles.shareCancelBtn} onPress={() => setShareOptionsVisible(false)}>
+                     <Text style={styles.shareCancelText}>{t('cancel')}</Text>
                   </TouchableOpacity>
                </View>
-
-               <TouchableOpacity style={styles.shareActionBtn} onPress={() => runShareAction(handleShareImage)}>
-                  <Ionicons name="image-outline" size={20} color="#000" />
-                  <Text style={styles.shareActionText}>{t('reportShareImage')}</Text>
-               </TouchableOpacity>
-               <TouchableOpacity style={styles.shareActionBtn} onPress={() => runShareAction(handleSaveImage)}>
-                  <Ionicons name="download-outline" size={20} color="#000" />
-                  <Text style={styles.shareActionText}>{t('reportSaveImage')}</Text>
-               </TouchableOpacity>
-               <TouchableOpacity style={styles.shareActionBtn} onPress={() => runShareAction(handleSharePdf)}>
-                  <Ionicons name="document-text-outline" size={20} color="#000" />
-                  <Text style={styles.shareActionText}>{t('reportSharePdf')}</Text>
-               </TouchableOpacity>
-               <TouchableOpacity style={styles.shareActionBtn} onPress={() => runShareAction(handleSavePdf)}>
-                  <Ionicons name="folder-outline" size={20} color="#000" />
-                  <Text style={styles.shareActionText}>{t('reportSavePdf')}</Text>
-               </TouchableOpacity>
-
-               <TouchableOpacity style={styles.shareCancelBtn} onPress={() => setShareOptionsVisible(false)}>
-                  <Text style={styles.shareCancelText}>{t('cancel')}</Text>
-               </TouchableOpacity>
             </View>
-         </View>
-      </Modal>
+         </Modal>
 
-      <Modal visible={swapModalVisible} animationType="slide" transparent>
-         <View style={styles.modalOverlay}>
-            <View style={styles.modalContent}>
-               <View style={styles.modalHeader}>
-                  <Text style={styles.modalTitle}>{t('swapIngredient')}</Text>
-                  <TouchableOpacity onPress={() => setSwapModalVisible(false)}><Ionicons name="close" size={24} color={COLORS.text} /></TouchableOpacity>
+         <Modal visible={swapModalVisible} animationType="slide" transparent>
+            <View style={styles.modalOverlay}>
+               <View style={styles.modalContent}>
+                  <View style={styles.modalHeader}>
+                     <Text style={styles.modalTitle}>{t('swapIngredient')}</Text>
+                     <TouchableOpacity onPress={() => setSwapModalVisible(false)}><Ionicons name="close" size={24} color={COLORS.text} /></TouchableOpacity>
+                  </View>
+                  <FlatList
+                     data={availableOptions}
+                     keyExtractor={item => item.id}
+                     renderItem={({ item }) => (
+                        <TouchableOpacity style={styles.swapItem} onPress={() => selectIngredient(item)}>
+                           {renderMealImg(item)}
+                           <Text style={styles.swapItemText}>{item.name}</Text>
+                           <Text style={styles.swapItemMacros}>{item.calsBase} kcal/100g</Text>
+                        </TouchableOpacity>
+                     )}
+                     ListEmptyComponent={<Text style={{ color: COLORS.textDim, textAlign: 'center', marginTop: 20 }}>{t('noIngredients')}</Text>}
+                  />
                </View>
-               <FlatList 
-                  data={availableOptions}
-                  keyExtractor={item => item.id}
-                  renderItem={({item}) => (
-                     <TouchableOpacity style={styles.swapItem} onPress={() => selectIngredient(item)}>
-                        {renderMealImg(item)}
-                        <Text style={styles.swapItemText}>{item.name}</Text>
-                        <Text style={styles.swapItemMacros}>{item.calsBase} kcal/100g</Text>
-                     </TouchableOpacity>
-                  )}
-                  ListEmptyComponent={<Text style={{color: COLORS.textDim, textAlign: 'center', marginTop: 20}}>{t('noIngredients')}</Text>}
-               />
             </View>
-         </View>
-      </Modal>
+         </Modal>
+
+         {isSharingPdf && (
+            <View style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'center', alignItems: 'center', zIndex: 9999 }}>
+               <ActivityIndicator size="large" color={COLORS.primary} />
+            </View>
+         )}
       </View>
    );
 }
@@ -421,7 +457,7 @@ const styles = StyleSheet.create({
    container: { flex: 1, backgroundColor: COLORS.background },
    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 60, paddingBottom: 16 },
    headerTitle: { color: COLORS.text, fontSize: 18, fontWeight: 'bold' },
-   captureArea: { backgroundColor: COLORS.background, paddingBottom: 1 },
+   captureArea: { width: '100%', backgroundColor: COLORS.background, paddingBottom: 1 },
    reportSheet: { backgroundColor: '#ffffff', padding: 24 },
    reportHeader: { borderBottomWidth: 2, borderBottomColor: '#d9e7f7', paddingBottom: 16, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 },
    reportKicker: { color: '#2b6cb0', fontSize: 11, fontWeight: 'bold', marginBottom: 6 },

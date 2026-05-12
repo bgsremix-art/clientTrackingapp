@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Image } from 'react-native';
+import { View, Text, StyleSheet, TextInput, TouchableOpacity, ScrollView, Image, KeyboardAvoidingView, Platform } from 'react-native';
 import { COLORS } from '../constants/theme';
 import { Ionicons } from '@expo/vector-icons';
 import { useClients } from '../context/ClientContext';
@@ -69,65 +69,75 @@ export default function AddIngredientScreen({ navigation, route }: any) {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
-      <View style={styles.header}>
-         <Ionicons name="chevron-back" size={24} color={COLORS.text} onPress={() => navigation.goBack()}/>
-         <Text style={styles.headerTitle}>{editingId ? t('editIngredientTitle') : t('addIngredientTitle')}</Text>
-         <TouchableOpacity onPress={() => navigation.goBack()}>
-           <Text style={{color: COLORS.textDim}}>{t('cancel')}</Text>
-         </TouchableOpacity>
-      </View>
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'} 
+      style={{ flex: 1 }}
+    >
+      <ScrollView 
+        style={styles.container} 
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.header}>
+           <Ionicons name="chevron-back" size={24} color={COLORS.text} onPress={() => navigation.goBack()}/>
+           <Text style={styles.headerTitle}>{editingId ? t('editIngredientTitle') : t('addIngredientTitle')}</Text>
+           <TouchableOpacity onPress={() => navigation.goBack()}>
+             <Text style={{color: COLORS.textDim}}>{t('cancel')}</Text>
+           </TouchableOpacity>
+        </View>
 
-      <View style={styles.headerAvatar}>
-        <TouchableOpacity style={styles.avatarCircle} onPress={pickImage}>
-          {imageUri ? <Image source={{uri: imageUri}} style={styles.avatarImg} /> : <Ionicons name="camera" size={54} color={COLORS.textDim} />}
-          <View style={styles.cameraIcon}>
-            <Ionicons name="add" size={16} color="#fff" />
+        <View style={styles.headerAvatar}>
+          <TouchableOpacity style={styles.avatarCircle} onPress={pickImage}>
+            {imageUri ? <Image source={{uri: imageUri}} style={styles.avatarImg} /> : <Ionicons name="camera" size={54} color={COLORS.textDim} />}
+            <View style={styles.cameraIcon}>
+              <Ionicons name="add" size={16} color="#fff" />
+            </View>
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.label}>{t('ingredientName')}</Text>
+        <TextInput style={[styles.input, styles.inputActive]} placeholder="e.g., Turkey Breast" placeholderTextColor={COLORS.textDim} value={name} onChangeText={setName} />
+
+        <Text style={styles.label}>{t('category')}</Text>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll} contentContainerStyle={{gap: 8}}>
+           {['Protein', 'Carbs', 'Veggies', 'Fruits'].map(cat => {
+              const mappedCat = cat === 'Protein' ? t('protein') : cat === 'Carbs' ? t('carbs') : cat === 'Veggies' ? t('veggies') : t('fruits');
+              return (
+                <TouchableOpacity key={cat} onPress={() => setCategory(cat as any)} style={[styles.tabBtn, category === cat && styles.tabBtnActive]}>
+                  <Text style={[styles.tabText, category === cat && styles.tabTextActive]}>{mappedCat}</Text>
+                </TouchableOpacity>
+              );
+           })}
+        </ScrollView>
+
+        <Text style={styles.label}>{t('nutritionLabel')}</Text>
+        <View style={styles.gridRow}>
+          <View style={styles.gridCol}>
+            <Text style={styles.subLabel}>{t('protein')} (g)</Text>
+            <TextInput style={styles.input} keyboardType="numeric" placeholder="22" placeholderTextColor={COLORS.textDim} value={protein} onChangeText={setProtein}/>
           </View>
+          <View style={styles.gridCol}>
+            <Text style={styles.subLabel}>{t('carbs')} (g)</Text>
+            <TextInput style={styles.input} keyboardType="numeric" placeholder="0" placeholderTextColor={COLORS.textDim} value={carbs} onChangeText={setCarbs}/>
+          </View>
+          <View style={styles.gridCol}>
+            <Text style={styles.subLabel}>{t('fats')} (g)</Text>
+            <TextInput style={styles.input} keyboardType="numeric" placeholder="1" placeholderTextColor={COLORS.textDim} value={fats} onChangeText={setFats}/>
+          </View>
+        </View>
+
+        <Text style={styles.label}>{t('caloriesKcal')}</Text>
+        <TextInput style={styles.input} keyboardType="numeric" placeholder="97" placeholderTextColor={COLORS.textDim} value={cals} onChangeText={setCals}/>
+
+        <Text style={styles.label}>{t('descriptionNotes')}</Text>
+        <TextInput style={[styles.input, {height: 80, textAlignVertical: 'top'}]} multiline placeholder="e.g., Lean, high-quality protein." placeholderTextColor={COLORS.textDim} value={notes} onChangeText={setNotes}/>
+
+        <TouchableOpacity style={styles.addBtn} onPress={handleSave}>
+           <Text style={styles.addBtnText}>{editingId ? t('saveChanges') : t('addToLibrary')}</Text>
         </TouchableOpacity>
-      </View>
-
-      <Text style={styles.label}>{t('ingredientName')}</Text>
-      <TextInput style={[styles.input, styles.inputActive]} placeholder="e.g., Turkey Breast" placeholderTextColor={COLORS.textDim} value={name} onChangeText={setName} />
-
-      <Text style={styles.label}>{t('category')}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.tabScroll} contentContainerStyle={{gap: 8}}>
-         {['Protein', 'Carbs', 'Veggies', 'Fruits'].map(cat => {
-            const mappedCat = cat === 'Protein' ? t('protein') : cat === 'Carbs' ? t('carbs') : cat === 'Veggies' ? t('veggies') : t('fruits');
-            return (
-              <TouchableOpacity key={cat} onPress={() => setCategory(cat as any)} style={[styles.tabBtn, category === cat && styles.tabBtnActive]}>
-                <Text style={[styles.tabText, category === cat && styles.tabTextActive]}>{mappedCat}</Text>
-              </TouchableOpacity>
-            );
-         })}
       </ScrollView>
-
-      <Text style={styles.label}>{t('nutritionLabel')}</Text>
-      <View style={styles.gridRow}>
-        <View style={styles.gridCol}>
-          <Text style={styles.subLabel}>{t('protein')} (g)</Text>
-          <TextInput style={styles.input} keyboardType="numeric" placeholder="22" placeholderTextColor={COLORS.textDim} value={protein} onChangeText={setProtein}/>
-        </View>
-        <View style={styles.gridCol}>
-          <Text style={styles.subLabel}>{t('carbs')} (g)</Text>
-          <TextInput style={styles.input} keyboardType="numeric" placeholder="0" placeholderTextColor={COLORS.textDim} value={carbs} onChangeText={setCarbs}/>
-        </View>
-        <View style={styles.gridCol}>
-          <Text style={styles.subLabel}>{t('fats')} (g)</Text>
-          <TextInput style={styles.input} keyboardType="numeric" placeholder="1" placeholderTextColor={COLORS.textDim} value={fats} onChangeText={setFats}/>
-        </View>
-      </View>
-
-      <Text style={styles.label}>{t('caloriesKcal')}</Text>
-      <TextInput style={styles.input} keyboardType="numeric" placeholder="97" placeholderTextColor={COLORS.textDim} value={cals} onChangeText={setCals}/>
-
-      <Text style={styles.label}>{t('descriptionNotes')}</Text>
-      <TextInput style={[styles.input, {height: 80, textAlignVertical: 'top'}]} multiline placeholder="e.g., Lean, high-quality protein." placeholderTextColor={COLORS.textDim} value={notes} onChangeText={setNotes}/>
-
-      <TouchableOpacity style={styles.addBtn} onPress={handleSave}>
-         <Text style={styles.addBtnText}>{editingId ? t('saveChanges') : t('addToLibrary')}</Text>
-      </TouchableOpacity>
-    </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
