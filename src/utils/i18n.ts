@@ -3,6 +3,7 @@ export const translations = {
     // Tabs & Navigation
     tabClients: 'Clients',
     tabIngredients: 'Ingredients',
+    tabFinance: 'Finance',
     tabSettings: 'Settings',
 
     // Dashboard
@@ -77,6 +78,7 @@ export const translations = {
 
     // Progress Record
     progressRecordTitle: 'Progress Record',
+    financeTitle: 'Finance & Revenue',
     notes: 'Notes',
     close: 'Close',
 
@@ -241,11 +243,22 @@ export const translations = {
     enterGymName: 'Enter gym name',
     logoHelper: 'Logo will appear on all PDF and Image reports.',
     uploading: 'Uploading...',
+    selectBeforePhoto: 'Select first photo (Before)',
+    selectAfterPhoto: 'Select second photo (After)',
+    logPayment: 'Log Payment',
+    amount: 'Amount',
+    paymentDate: 'Payment Date',
+    editPayment: 'Edit Payment',
+    totalRevenue: 'Total Revenue',
+    confirmDeletePayment: 'Are you sure you want to delete this payment record?',
+    paymentLoggedSuccess: 'Payment logged successfully!',
+    unknownClient: 'Unknown Client',
   },
   km: {
     // Tabs & Navigation
     tabClients: 'អតិថិជន',
     tabIngredients: 'គ្រឿងផ្សំ',
+    tabFinance: 'ចំណូល',
     tabSettings: 'ការកំណត់',
 
     // Dashboard
@@ -320,6 +333,7 @@ export const translations = {
 
     // Progress Record
     progressRecordTitle: 'កំណត់ត្រាការវិវឌ្ឍ',
+    financeTitle: 'ចំណូល និងហិរញ្ញវត្ថុ',
     notes: 'កំណត់ចំណាំ',
     close: 'បិទ',
 
@@ -484,5 +498,15 @@ export const translations = {
     enterGymName: 'បញ្ចូលឈ្មោះក្លឹបហាត់ប្រាណ',
     logoHelper: 'ឡូហ្គោនឹងបង្ហាញលើរបាយការណ៍ PDF និងរូបភាពទាំងអស់។',
     uploading: 'កំពុងបញ្ចូល...',
+    selectBeforePhoto: 'ជ្រើសរើសរូបថតដំបូង (មុន)',
+    selectAfterPhoto: 'ជ្រើសរើសរូបថតទីពីរ (ក្រោយ)',
+    logPayment: 'កត់ត្រាការបង់ប្រាក់',
+    amount: 'ចំនួនទឹកប្រាក់',
+    paymentDate: 'កាលបរិច្ឆេទបង់ប្រាក់',
+    editPayment: 'កែប្រែការបង់ប្រាក់',
+    totalRevenue: 'ចំណូលសរុប',
+    confirmDeletePayment: 'តើអ្នកពិតជាចង់លុបកំណត់ត្រាបង់ប្រាក់នេះមែនទេ?',
+    paymentLoggedSuccess: 'កំណត់ត្រាបង់ប្រាក់ត្រូវបានរក្សាទុកដោយជោគជ័យ!',
+    unknownClient: 'មិនស្គាល់អតិថិជន',
   },
 };

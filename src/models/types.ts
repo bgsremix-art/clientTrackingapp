@@ -45,6 +45,15 @@ export interface AttendanceRecord {
   notes?: string;
 }
 
+export interface PaymentRecord {
+  id: string;
+  clientId: string;
+  amount: number;
+  date: string; // ISO string
+  currency: string; // e.g. USD or KHR
+  note?: string;
+}
+
 export interface AppSettings {
   loseWeightCals: number;
   gainMuscleCals: number;
@@ -77,6 +86,7 @@ export interface UserProfile {
   storageBytes?: number;
   storageUploadCount?: number;
   untrackedPhotoCount?: number;
+  paymentCount?: number;
   dailyReads?: number;
   dailyWrites?: number;
 }

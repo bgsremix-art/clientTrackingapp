@@ -1,5 +1,6 @@
-import React, { useRef, useState } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, Image, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import React, { useRef, useState, useMemo, useEffect } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, Modal, TextInput, ScrollView, Image, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Dimensions, Animated, PanResponder } from 'react-native';
+import { State, GestureHandlerRootView, PinchGestureHandler, PanGestureHandler } from 'react-native-gesture-handler';
 import * as ImagePicker from 'expo-image-picker';
 import { captureRef } from 'react-native-view-shot';
 import { COLORS } from '../constants/theme';
@@ -13,11 +14,126 @@ import { getSafeFileName, saveClientProgressPdf, saveImageFile, shareClientProgr
 
 export default function ClientDetailScreen({ route, navigation }: any) {
    const { clientId } = route.params;
-   const { clients, records, attendance, addRecord, editRecord, deleteRecord, deleteClient, editClient, settings, t } = useClients();
+   const { clients, records, attendance, payments, addRecord, editRecord, deleteRecord, deleteClient, editClient, settings, t, addPayment, deletePayment } = useClients();
    const client = clients.find(c => c.id === clientId);
 
-   const history = records.filter(r => r.clientId === clientId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+   const history = useMemo(() => 
+      records.filter(r => r.clientId === clientId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()),
+   [records, clientId]);
+   
+   const groupedHistory = useMemo(() => {
+      const groups: { [key: string]: any[] } = {};
+      history.forEach(record => {
+         const date = new Date(record.date);
+         const key = date.toLocaleDateString(settings.language === 'km' ? 'km-KH' : 'en-GB', { month: 'long', year: 'numeric' });
+         if (!groups[key]) groups[key] = [];
+         groups[key].push(record);
+      });
+      return groups;
+   }, [history, settings.language]);
+
+   const [expandedMonths, setExpandedMonths] = useState<string[]>([]);
+   const hasInitializedRef = useRef(false);
+
+   useEffect(() => {
+      if (Object.keys(groupedHistory).length > 0 && !hasInitializedRef.current) {
+         // Expand the most recent month by default ONLY ONCE
+         const mostRecentMonth = Object.keys(groupedHistory)[0];
+         setExpandedMonths([mostRecentMonth]);
+         hasInitializedRef.current = true;
+      }
+   }, [groupedHistory]);
+
+   const toggleMonth = (monthKey: string) => {
+      setExpandedMonths(prev => 
+         prev.includes(monthKey) ? prev.filter(m => m !== monthKey) : [...prev, monthKey]
+      );
+   };
+
    const latestWeight = history.length > 0 ? history[0] : null;
+
+   const { width: SCREEN_WIDTH } = Dimensions.get('window');
+   const compareWidth = SCREEN_WIDTH * 0.98 - 24;
+   const frameWidth = compareWidth / 2;
+   const frameHeight = (frameWidth * 4) / 3;
+
+   // Animated Values for Before
+   const scaleB = useRef(new Animated.Value(1)).current;
+   const translateX_B = useRef(new Animated.Value(0)).current;
+   const translateY_B = useRef(new Animated.Value(0)).current;
+   let lastScaleB = 1;
+   let lastTranslateX_B = 0;
+   let lastTranslateY_B = 0;
+
+   const onPinchEventB = Animated.event([{ nativeEvent: { scale: scaleB } }], { useNativeDriver: true });
+   const onPinchStateChangeB = (event: any) => {
+      if (event.nativeEvent.oldState === State.ACTIVE) {
+         lastScaleB *= event.nativeEvent.scale;
+         scaleB.setOffset(lastScaleB);
+         scaleB.setValue(1);
+      }
+   };
+
+   const onPanEventB = Animated.event([{ nativeEvent: { translationX: translateX_B, translationY: translateY_B } }], { useNativeDriver: true });
+   const onPanStateChangeB = (event: any) => {
+      if (event.nativeEvent.oldState === State.ACTIVE) {
+         lastTranslateX_B += event.nativeEvent.translationX;
+         lastTranslateY_B += event.nativeEvent.translationY;
+         translateX_B.setOffset(lastTranslateX_B);
+         translateX_B.setValue(0);
+         translateY_B.setOffset(lastTranslateY_B);
+         translateY_B.setValue(0);
+      }
+   };
+
+   // Animated Values for After
+   const scaleA = useRef(new Animated.Value(1)).current;
+   const translateX_A = useRef(new Animated.Value(0)).current;
+   const translateY_A = useRef(new Animated.Value(0)).current;
+   let lastScaleA = 1;
+   let lastTranslateX_A = 0;
+   let lastTranslateY_A = 0;
+
+   const onPinchEventA = Animated.event([{ nativeEvent: { scale: scaleA } }], { useNativeDriver: true });
+   const onPinchStateChangeA = (event: any) => {
+      if (event.nativeEvent.oldState === State.ACTIVE) {
+         lastScaleA *= event.nativeEvent.scale;
+         scaleA.setOffset(lastScaleA);
+         scaleA.setValue(1);
+      }
+   };
+
+   const onPanEventA = Animated.event([{ nativeEvent: { translationX: translateX_A, translationY: translateY_A } }], { useNativeDriver: true });
+   const onPanStateChangeA = (event: any) => {
+      if (event.nativeEvent.oldState === State.ACTIVE) {
+         lastTranslateX_A += event.nativeEvent.translationX;
+         lastTranslateY_A += event.nativeEvent.translationY;
+         translateX_A.setOffset(lastTranslateX_A);
+         translateX_A.setValue(0);
+         translateY_A.setOffset(lastTranslateY_A);
+         translateY_A.setValue(0);
+      }
+   };
+
+   const resetZoomB = () => {
+      lastScaleB = 1; lastTranslateX_B = 0; lastTranslateY_B = 0;
+      scaleB.setOffset(1); scaleB.setValue(1);
+      translateX_B.setOffset(0); translateX_B.setValue(0);
+      translateY_B.setOffset(0); translateY_B.setValue(0);
+   };
+
+   const resetZoomA = () => {
+      lastScaleA = 1; lastTranslateX_A = 0; lastTranslateY_A = 0;
+      scaleA.setOffset(1); scaleA.setValue(1);
+      translateX_A.setOffset(0); translateX_A.setValue(0);
+      translateY_A.setOffset(0); translateY_A.setValue(0);
+   };
+
+   // Refs for simultaneous gesture handling
+   const panRefB = useRef(null);
+   const pinchRefB = useRef(null);
+   const panRefA = useRef(null);
+   const pinchRefA = useRef(null);
 
    const [modalVisible, setModalVisible] = useState(false);
    const [configModalVisible, setConfigModalVisible] = useState(false);
@@ -33,14 +149,17 @@ export default function ClientDetailScreen({ route, navigation }: any) {
    const [afterRecord, setAfterRecord] = useState<any | null>(null);
    const [beforePhotoIdx, setBeforePhotoIdx] = useState(0);
    const [afterPhotoIdx, setAfterPhotoIdx] = useState(0);
-   const [beforeScale, setBeforeScale] = useState(1);
-   const [afterScale, setAfterScale] = useState(1);
    const [isSelectingForCompare, setIsSelectingForCompare] = useState(false);
    const [selectedCompareIds, setSelectedCompareIds] = useState<string[]>([]);
+   
+   const [paymentModalVisible, setPaymentModalVisible] = useState(false);
+   const [paymentAmount, setPaymentAmount] = useState('');
+   const [paymentDate, setPaymentDate] = useState(new Date().toISOString().split('T')[0]);
+   const [paymentCurrency, setPaymentCurrency] = useState('USD');
+
    const progressReportRef = useRef<View>(null);
    const comparisonRef = useRef<View>(null);
 
-   // Config States
    const [localModifier, setLocalModifier] = useState(client?.customCalorieModifier?.toString() || '');
    const [localKG, setLocalKG] = useState('');
 
@@ -48,7 +167,6 @@ export default function ClientDetailScreen({ route, navigation }: any) {
 
    if (!client) return <View style={styles.container}><Text style={styles.emptyText}>Client not found</Text></View>;
 
-   // Initialize KG from modifier on mount or change
    const updateKGFromModifier = (m: string) => {
       if (m === '' || m === '-') { setLocalKG(''); return; }
       const val = parseInt(m) || 0;
@@ -69,6 +187,25 @@ export default function ClientDetailScreen({ route, navigation }: any) {
       const modifier = parseInt(localModifier);
       editClient({ ...client, customCalorieModifier: isNaN(modifier) ? undefined : modifier });
       setConfigModalVisible(false);
+   };
+
+   const handleLogPayment = () => {
+      if (!paymentAmount) return;
+      const amount = parseFloat(paymentAmount);
+      if (isNaN(amount)) return;
+
+      const newPayment = {
+         id: Date.now().toString(),
+         clientId: clientId,
+         amount: amount,
+         date: new Date(paymentDate).toISOString(),
+         currency: paymentCurrency,
+      };
+
+      addPayment(newPayment);
+      setPaymentAmount('');
+      setPaymentModalVisible(false);
+      Alert.alert(t('success'), t('paymentLoggedSuccess'));
    };
 
    const { min, max } = getHealthyWeightRange(client.heightCM);
@@ -155,7 +292,6 @@ export default function ClientDetailScreen({ route, navigation }: any) {
 
    const prepareReportImageCapture = async () => {
       setIsCapturingReport(true);
-      // Increased delay to allow profile photo to load from network
       await new Promise(resolve => setTimeout(resolve, 800));
    };
 
@@ -202,7 +338,6 @@ export default function ClientDetailScreen({ route, navigation }: any) {
       if (!comparisonRef.current) return;
       setIsSharingPdf(true);
       try {
-         // Tiny delay for layout
          await new Promise(r => setTimeout(r, 200));
          const uri = await captureRef(comparisonRef.current, {
             format: 'jpg',
@@ -323,6 +458,9 @@ export default function ClientDetailScreen({ route, navigation }: any) {
             <TouchableOpacity onPress={() => navigation.goBack()}><Ionicons name="arrow-back" size={24} color={COLORS.text} /></TouchableOpacity>
             <Text style={styles.headerTitle}>{t('clientDetailsTitle')}</Text>
             <View style={{ flexDirection: 'row', gap: 16 }}>
+               <TouchableOpacity onPress={() => setPaymentModalVisible(true)}>
+                  <Ionicons name="cash-outline" size={24} color={COLORS.primary} />
+               </TouchableOpacity>
                <TouchableOpacity onPress={() => setReportOptionsVisible(true)} disabled={isSharingPdf}>
                   {isSharingPdf ? (
                      <ActivityIndicator color={COLORS.primary} />
@@ -411,7 +549,7 @@ export default function ClientDetailScreen({ route, navigation }: any) {
                         </View>
                         {history.length === 0 ? (
                            <Text style={styles.reportEmpty}>{t('noRecords')}</Text>
-                        ) : history.slice(0, 8).map(h => (
+                        ) : history.map(h => (
                            <View key={h.id} style={styles.reportTableRow}>
                               <Text style={[styles.reportTd, { flex: 1.3 }]}>{new Date(h.date).toLocaleDateString(dateLocale, { day: 'numeric', month: 'short', year: 'numeric' })}</Text>
                               <Text style={styles.reportTd}>{h.currentWeightKG} kg</Text>
@@ -480,67 +618,99 @@ export default function ClientDetailScreen({ route, navigation }: any) {
                      <View style={styles.historyContainer}>
                         {isSelectingForCompare && (
                            <Text style={{ color: COLORS.primary, fontSize: 13, textAlign: 'center', marginBottom: 12, fontWeight: 'bold' }}>
-                              {selectedCompareIds.length === 0 ? 'Select first photo (Before)' : 'Select second photo (After)'}
+                              {selectedCompareIds.length === 0 ? t('selectBeforePhoto') : t('selectAfterPhoto')}
                            </Text>
                         )}
-                        {history.length === 0 ? <Text style={styles.emptyText}>{t('noRecords')}</Text> : history.map(h => {
-                           const isSelected = selectedCompareIds.includes(h.id);
-                           return (
-                              <TouchableOpacity 
-                                 key={h.id} 
-                                 style={[styles.historyRow, isSelected && { borderColor: COLORS.primary, borderWidth: 1 }]} 
-                                 onPress={() => {
-                                    if (isSelectingForCompare) {
-                                       if (isSelected) {
-                                          setSelectedCompareIds(prev => prev.filter(id => id !== h.id));
-                                       } else {
-                                          const next = [...selectedCompareIds, h.id];
-                                          if (next.length === 2) {
-                                             const before = history.find(r => r.id === next[0]);
-                                             const after = history.find(r => r.id === next[1]);
-                                             // Ensure chronological order (older is before)
-                                             if (before && after) {
-                                                if (new Date(before.date) > new Date(after.date)) {
-                                                   setBeforeRecord(after);
-                                                   setAfterRecord(before);
-                                                } else {
-                                                   setBeforeRecord(before);
-                                                   setAfterRecord(after);
-                                                }
-                                             }
-                                             setBeforePhotoIdx(0);
-                                             setAfterPhotoIdx(0);
-                                             setBeforeScale(1);
-                                             setAfterScale(1);
-                                             setCompareModalVisible(true);
-                                             setIsSelectingForCompare(false);
-                                             setSelectedCompareIds([]);
-                                          } else {
-                                             setSelectedCompareIds(next);
-                                          }
-                                       }
-                                    } else {
-                                       navigation.navigate('ProgressRecord', { recordId: h.id });
-                                    }
-                                 }}
-                              >
-                                 <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-                                    {isSelectingForCompare && (
-                                       <Ionicons 
-                                          name={isSelected ? "checkmark-circle" : "ellipse-outline"} 
-                                          size={22} 
-                                          color={isSelected ? COLORS.primary : COLORS.textDim} 
-                                          style={{ marginRight: 12 }} 
-                                       />
+                        {history.length === 0 ? (
+                           <Text style={styles.emptyText}>{t('noRecords')}</Text>
+                        ) : (
+                           Object.keys(groupedHistory).map(monthKey => {
+                              const isExpanded = expandedMonths.includes(monthKey);
+                              return (
+                                 <View key={monthKey} style={{ marginBottom: 4 }}>
+                                    <TouchableOpacity 
+                                       onPress={() => toggleMonth(monthKey)}
+                                       style={styles.monthHeader}
+                                       activeOpacity={0.7}
+                                    >
+                                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                          <Ionicons 
+                                             name={isExpanded ? "chevron-down" : "chevron-forward"} 
+                                             size={18} 
+                                             color={COLORS.primary} 
+                                          />
+                                          <Text style={styles.monthTitle}>{monthKey}</Text>
+                                       </View>
+                                       <View style={styles.monthBadge}>
+                                          <Text style={styles.monthBadgeText}>{groupedHistory[monthKey].length}</Text>
+                                       </View>
+                                    </TouchableOpacity>
+
+                                    {isExpanded && (
+                                       <View style={{ paddingLeft: 8, marginTop: 4 }}>
+                                          {groupedHistory[monthKey].map(h => {
+                                             const isSelected = selectedCompareIds.includes(h.id);
+                                             return (
+                                                <TouchableOpacity 
+                                                   key={h.id} 
+                                                   style={[styles.historyRow, isSelected && { borderColor: COLORS.primary, borderWidth: 1 }]} 
+                                                   onPress={() => {
+                                                      if (isSelectingForCompare) {
+                                                         if (isSelected) {
+                                                            setSelectedCompareIds(prev => prev.filter(id => id !== h.id));
+                                                         } else {
+                                                            const next = [...selectedCompareIds, h.id];
+                                                            if (next.length === 2) {
+                                                               const before = history.find(r => r.id === next[0]);
+                                                               const after = history.find(r => r.id === next[1]);
+                                                               if (before && after) {
+                                                                  if (new Date(before.date) > new Date(after.date)) {
+                                                                     setBeforeRecord(after);
+                                                                     setAfterRecord(before);
+                                                                  } else {
+                                                                     setBeforeRecord(before);
+                                                                     setAfterRecord(after);
+                                                                  }
+                                                               }
+                                                               setBeforePhotoIdx(0);
+                                                               setAfterPhotoIdx(0);
+                                                               resetZoomB();
+                                                               resetZoomA();
+                                                               setCompareModalVisible(true);
+                                                               setIsSelectingForCompare(false);
+                                                               setSelectedCompareIds([]);
+                                                            } else {
+                                                               setSelectedCompareIds(next);
+                                                            }
+                                                         }
+                                                      } else {
+                                                         navigation.navigate('ProgressRecord', { recordId: h.id });
+                                                      }
+                                                   }}
+                                                >
+                                                   <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                                                      {isSelectingForCompare && (
+                                                         <Ionicons 
+                                                            name={isSelected ? "checkmark-circle" : "ellipse-outline"} 
+                                                            size={22} 
+                                                            color={isSelected ? COLORS.primary : COLORS.textDim} 
+                                                            style={{ marginRight: 12 }} 
+                                                         />
+                                                      )}
+                                                      <Text style={styles.historyText}>{new Date(h.date).toLocaleDateString(settings.language === 'km' ? 'km-KH' : 'en-GB', { day: 'numeric', month: 'short' })}: {h.currentWeightKG} kg</Text>
+                                                   </View>
+                                                   {h.photoUris && h.photoUris.length > 0 && <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}><Ionicons name="camera" size={16} color={COLORS.primary} /><Text style={{ color: COLORS.primary, fontSize: 12, marginLeft: 4 }}>{h.photoUris.length}</Text></View>}
+                                                   <View style={{ flex: 1 }} />
+                                                   {!isSelectingForCompare && <Ionicons name="chevron-forward" size={20} color={COLORS.textDim} />}
+                                                </TouchableOpacity>
+                                             );
+                                          })}
+                                       </View>
                                     )}
-                                    <Text style={styles.historyText}>{new Date(h.date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}: {h.currentWeightKG} kg</Text>
                                  </View>
-                                 {h.photoUris && h.photoUris.length > 0 && <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 8 }}><Ionicons name="camera" size={16} color={COLORS.primary} /><Text style={{ color: COLORS.primary, fontSize: 12, marginLeft: 4 }}>{h.photoUris.length}</Text></View>}
-                                 <View style={{ flex: 1 }} />
-                                 {!isSelectingForCompare && <Ionicons name="chevron-forward" size={20} color={COLORS.textDim} />}
-                              </TouchableOpacity>
-                           );
-                        })}
+                              );
+                           })
+                        )}
                      </View>
                   </>
                )}
@@ -629,6 +799,53 @@ export default function ClientDetailScreen({ route, navigation }: any) {
             </KeyboardAvoidingView>
          </Modal>
 
+         {/* Payment Modal */}
+         <Modal visible={paymentModalVisible} transparent animationType="slide">
+            <View style={styles.modalBg}>
+               <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'} style={styles.modalCard}>
+                  <View style={styles.modalHeaderRow}>
+                     <Text style={styles.modalTitle}>{t('logPayment')}</Text>
+                     <TouchableOpacity onPress={() => setPaymentModalVisible(false)}><Ionicons name="close" size={24} color={COLORS.textDim} /></TouchableOpacity>
+                  </View>
+
+                  <View style={styles.configGroup}>
+                     <Text style={styles.configLabel}>{t('amount')}</Text>
+                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                        <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surfaceLight, borderRadius: 12, paddingHorizontal: 12 }}>
+                           <Text style={{ color: COLORS.primary, fontWeight: 'bold', fontSize: 18 }}>$</Text>
+                           <TextInput 
+                              style={[styles.input, { flex: 1, backgroundColor: 'transparent', marginBottom: 0 }]}
+                              placeholder="0.00"
+                              placeholderTextColor={COLORS.textDim}
+                              keyboardType="numeric"
+                              value={paymentAmount}
+                              onChangeText={setPaymentAmount}
+                           />
+                        </View>
+                     </View>
+                  </View>
+
+                  <View style={[styles.configGroup, { marginTop: 10 }]}>
+                     <Text style={styles.configLabel}>{t('paymentDate')}</Text>
+                     <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: COLORS.surfaceLight, borderRadius: 12, paddingHorizontal: 12 }}>
+                        <Ionicons name="calendar-outline" size={18} color={COLORS.primary} style={{ marginRight: 8 }} />
+                        <TextInput 
+                           style={[styles.input, { flex: 1, backgroundColor: 'transparent', marginBottom: 0 }]}
+                           placeholder="YYYY-MM-DD"
+                           placeholderTextColor={COLORS.textDim}
+                           value={paymentDate}
+                           onChangeText={setPaymentDate}
+                        />
+                     </View>
+                  </View>
+
+                  <TouchableOpacity style={styles.configSaveBtn} onPress={handleLogPayment}>
+                     <Text style={styles.configSaveBtnText}>{t('save')}</Text>
+                  </TouchableOpacity>
+               </KeyboardAvoidingView>
+            </View>
+         </Modal>
+
          {/* Personal Config Modal */}
          <Modal visible={configModalVisible} transparent animationType="fade">
             <KeyboardAvoidingView style={styles.modalBg} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -710,124 +927,154 @@ export default function ClientDetailScreen({ route, navigation }: any) {
 
          {/* Compare Photos Modal */}
          <Modal visible={compareModalVisible} transparent animationType="slide">
-            <View style={styles.modalBg}>
-               <View style={[styles.modalCard, { width: '98%', height: '90%', padding: 12 }]}>
-                  <View style={styles.modalHeaderRow}>
-                     <View>
-                        <Text style={styles.modalTitle}>{t('comparePhotos')}</Text>
-                        <Text style={{ color: COLORS.textDim, fontSize: 12 }}>{t('reportChange')}: <Text style={{ color: COLORS.primary, fontWeight: 'bold' }}>{beforeRecord && afterRecord ? (afterRecord.currentWeightKG - beforeRecord.currentWeightKG).toFixed(1) : 0} kg</Text></Text>
+            <GestureHandlerRootView style={{ flex: 1 }}>
+               <View style={styles.modalBg}>
+                  <View style={[styles.modalCard, { width: '98%', height: '90%', padding: 12 }]}>
+                     <View style={styles.modalHeaderRow}>
+                        <View>
+                           <Text style={styles.modalTitle}>{t('comparePhotos')}</Text>
+                           <Text style={{ color: COLORS.textDim, fontSize: 12 }}>{t('reportChange')}: <Text style={{ color: COLORS.primary, fontWeight: 'bold' }}>{beforeRecord && afterRecord ? (afterRecord.currentWeightKG - beforeRecord.currentWeightKG).toFixed(1) : 0} kg</Text></Text>
+                        </View>
+                        <TouchableOpacity onPress={() => setCompareModalVisible(false)}><Ionicons name="close" size={28} color={COLORS.textDim} /></TouchableOpacity>
                      </View>
-                     <TouchableOpacity onPress={() => setCompareModalVisible(false)}><Ionicons name="close" size={28} color={COLORS.textDim} /></TouchableOpacity>
+
+                     <ScrollView showsVerticalScrollIndicator={false}>
+                        <View ref={comparisonRef} collapsable={false} style={{ backgroundColor: '#000', borderRadius: 12, overflow: 'hidden' }}>
+                           <View style={{ flexDirection: 'row', height: frameHeight }}>
+                              {/* Before Column */}
+                              <View style={{ flex: 1, borderRightWidth: 1, borderRightColor: '#333', overflow: 'hidden' }}>
+                                 <PanGestureHandler
+                                    ref={panRefB}
+                                    simultaneousHandlers={pinchRefB}
+                                    onGestureEvent={onPanEventB}
+                                    onHandlerStateChange={onPanStateChangeB}
+                                 >
+                                    <Animated.View style={{ flex: 1 }}>
+                                       <PinchGestureHandler
+                                          ref={pinchRefB}
+                                          simultaneousHandlers={panRefB}
+                                          onGestureEvent={onPinchEventB}
+                                          onHandlerStateChange={onPinchStateChangeB}
+                                       >
+                                          <Animated.View style={{ flex: 1, backgroundColor: '#111', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+                                             {beforeRecord?.photoUris?.[beforePhotoIdx] ? (
+                                                <Animated.Image 
+                                                   source={{ uri: beforeRecord.photoUris[beforePhotoIdx] }} 
+                                                   style={{ 
+                                                      width: frameWidth, 
+                                                      height: frameHeight,
+                                                      transform: [
+                                                         { translateX: translateX_B },
+                                                         { translateY: translateY_B },
+                                                         { scale: scaleB }
+                                                      ] 
+                                                   }} 
+                                                   resizeMode="cover" 
+                                                />
+                                             ) : (
+                                                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="image-outline" size={48} color="#333" /></View>
+                                             )}
+                                          </Animated.View>
+                                       </PinchGestureHandler>
+                                    </Animated.View>
+                                 </PanGestureHandler>
+                                 
+                                 <View style={{ position: 'absolute', bottom: 8, left: 8, pointerEvents: 'none' }}>
+                                    <Text style={{ color: '#c6ff00', fontSize: 16, fontWeight: '900', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3 }}>BEFORE</Text>
+                                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>{beforeRecord ? new Date(beforeRecord.date).toLocaleDateString('en-US') : ''}</Text>
+                                    <Text style={{ color: '#fff', fontSize: 10 }}>{beforeRecord?.currentWeightKG} kg</Text>
+                                 </View>
+                              </View>
+
+                              {/* After Column */}
+                              <View style={{ flex: 1, overflow: 'hidden' }}>
+                                 <PanGestureHandler
+                                    ref={panRefA}
+                                    simultaneousHandlers={pinchRefA}
+                                    onGestureEvent={onPanEventA}
+                                    onHandlerStateChange={onPanStateChangeA}
+                                 >
+                                    <Animated.View style={{ flex: 1 }}>
+                                       <PinchGestureHandler
+                                          ref={pinchRefA}
+                                          simultaneousHandlers={panRefA}
+                                          onGestureEvent={onPinchEventA}
+                                          onHandlerStateChange={onPinchStateChangeA}
+                                       >
+                                          <Animated.View style={{ flex: 1, backgroundColor: '#111', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+                                             {afterRecord?.photoUris?.[afterPhotoIdx] ? (
+                                                <Animated.Image 
+                                                   source={{ uri: afterRecord.photoUris[afterPhotoIdx] }} 
+                                                   style={{ 
+                                                      width: frameWidth, 
+                                                      height: frameHeight,
+                                                      transform: [
+                                                         { translateX: translateX_A },
+                                                         { translateY: translateY_A },
+                                                         { scale: scaleA }
+                                                      ] 
+                                                   }} 
+                                                   resizeMode="cover" 
+                                                />
+                                             ) : (
+                                                <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="image-outline" size={48} color="#333" /></View>
+                                             )}
+                                          </Animated.View>
+                                       </PinchGestureHandler>
+                                    </Animated.View>
+                                 </PanGestureHandler>
+
+                                 <View style={{ position: 'absolute', bottom: 8, left: 8, pointerEvents: 'none' }}>
+                                    <Text style={{ color: '#c6ff00', fontSize: 16, fontWeight: '900', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3 }}>AFTER</Text>
+                                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>{afterRecord ? new Date(afterRecord.date).toLocaleDateString('en-US') : ''}</Text>
+                                    <Text style={{ color: '#fff', fontSize: 10 }}>{afterRecord?.currentWeightKG} kg</Text>
+                                 </View>
+                              </View>
+                           </View>
+                        </View>
+
+
+                        {/* Photo selection for the specific chosen records */}
+                        <View style={{ marginTop: 16 }}>
+                           <View style={{ flexDirection: 'row', gap: 12 }}>
+                              <View style={{ flex: 1 }}>
+                                 <Text style={{ color: COLORS.text, fontWeight: 'bold', fontSize: 13, marginBottom: 4 }}>{t('before')} Photos:</Text>
+                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                                    {beforeRecord?.photoUris?.map((uri: string, idx: number) => (
+                                       <TouchableOpacity key={idx} onPress={() => setBeforePhotoIdx(idx)} style={{ marginRight: 8 }}>
+                                          <Image source={{ uri }} style={{ width: 50, height: 50, borderRadius: 6, borderWidth: beforePhotoIdx === idx ? 2 : 0, borderColor: COLORS.primary }} />
+                                       </TouchableOpacity>
+                                    ))}
+                                 </ScrollView>
+                              </View>
+
+                              <View style={{ flex: 1 }}>
+                                 <Text style={{ color: COLORS.text, fontWeight: 'bold', fontSize: 13, marginBottom: 4 }}>{t('after')} Photos:</Text>
+                                 <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
+                                    {afterRecord?.photoUris?.map((uri: string, idx: number) => (
+                                       <TouchableOpacity key={idx} onPress={() => setAfterPhotoIdx(idx)} style={{ marginRight: 8 }}>
+                                          <Image source={{ uri }} style={{ width: 50, height: 50, borderRadius: 6, borderWidth: afterPhotoIdx === idx ? 2 : 0, borderColor: COLORS.primary }} />
+                                       </TouchableOpacity>
+                                    ))}
+                                 </ScrollView>
+                              </View>
+                           </View>
+                        </View>
+
+                        <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, paddingBottom: 20 }}>
+                           <TouchableOpacity style={[styles.reportActionBtn, { flex: 1 }]} onPress={handleShareComparison}>
+                              <Ionicons name="share-outline" size={18} color="#000" />
+                              <Text style={styles.reportActionText}>{t('share')}</Text>
+                           </TouchableOpacity>
+                           <TouchableOpacity style={[styles.reportActionBtn, { flex: 1 }]} onPress={handleSaveComparison}>
+                              <Ionicons name="download-outline" size={18} color="#000" />
+                              <Text style={styles.reportActionText}>{t('save')}</Text>
+                           </TouchableOpacity>
+                        </View>
+                     </ScrollView>
                   </View>
-
-                  <ScrollView showsVerticalScrollIndicator={false}>
-                     <View ref={comparisonRef} collapsable={false} style={{ backgroundColor: '#000', borderRadius: 12, overflow: 'hidden' }}>
-                        <View style={{ flexDirection: 'row', height: 480 }}>
-                           {/* Before Column */}
-                           <View style={{ flex: 1, borderRightWidth: 1, borderRightColor: '#333', overflow: 'hidden' }}>
-                              <ScrollView 
-                                 style={{ flex: 1 }} 
-                                 contentContainerStyle={{ flexGrow: 1 }}
-                                 maximumZoomScale={5}
-                                 minimumZoomScale={1}
-                                 showsHorizontalScrollIndicator={false}
-                                 showsVerticalScrollIndicator={false}
-                                 centerContent
-                              >
-                                 <View style={{ flex: 1, backgroundColor: '#111' }}>
-                                    {beforeRecord?.photoUris?.[beforePhotoIdx] ? (
-                                       <Image 
-                                          source={{ uri: beforeRecord.photoUris[beforePhotoIdx] }} 
-                                          style={{ width: '100%', height: '100%', transform: [{ scale: beforeScale }] }} 
-                                          resizeMode="cover" 
-                                       />
-                                    ) : (
-                                       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="image-outline" size={48} color="#333" /></View>
-                                    )}
-                                 </View>
-                              </ScrollView>
-                              {/* Fixed Overlays outside ScrollView */}
-                              <View style={{ position: 'absolute', bottom: 12, left: 12, pointerEvents: 'none' }}>
-                                 <Text style={{ color: '#c6ff00', fontSize: 24, fontWeight: '900', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3 }}>BEFORE</Text>
-                                 <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>{beforeRecord ? new Date(beforeRecord.date).toLocaleDateString('en-US') : ''}</Text>
-                                 <Text style={{ color: '#fff', fontSize: 14 }}>{beforeRecord?.currentWeightKG} kg</Text>
-                              </View>
-                           </View>
-
-                           {/* After Column */}
-                           <View style={{ flex: 1, overflow: 'hidden' }}>
-                              <ScrollView 
-                                 style={{ flex: 1 }} 
-                                 contentContainerStyle={{ flexGrow: 1 }}
-                                 maximumZoomScale={5}
-                                 minimumZoomScale={1}
-                                 showsHorizontalScrollIndicator={false}
-                                 showsVerticalScrollIndicator={false}
-                                 centerContent
-                              >
-                                 <View style={{ flex: 1, backgroundColor: '#111' }}>
-                                    {afterRecord?.photoUris?.[afterPhotoIdx] ? (
-                                       <Image 
-                                          source={{ uri: afterRecord.photoUris[afterPhotoIdx] }} 
-                                          style={{ width: '100%', height: '100%', transform: [{ scale: afterScale }] }} 
-                                          resizeMode="cover" 
-                                       />
-                                    ) : (
-                                       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}><Ionicons name="image-outline" size={48} color="#333" /></View>
-                                    )}
-                                 </View>
-                              </ScrollView>
-                              {/* Fixed Overlays outside ScrollView */}
-                              <View style={{ position: 'absolute', bottom: 12, left: 12, pointerEvents: 'none' }}>
-                                 <Text style={{ color: '#c6ff00', fontSize: 24, fontWeight: '900', textShadowColor: 'rgba(0,0,0,0.8)', textShadowOffset: { width: 1, height: 1 }, textShadowRadius: 3 }}>AFTER</Text>
-                                 <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>{afterRecord ? new Date(afterRecord.date).toLocaleDateString('en-US') : ''}</Text>
-                                 <Text style={{ color: '#fff', fontSize: 14 }}>{afterRecord?.currentWeightKG} kg</Text>
-                              </View>
-                           </View>
-                        </View>
-                     </View>
-
-
-                     {/* Photo selection for the specific chosen records */}
-                     <View style={{ marginTop: 16 }}>
-                        <View style={{ flexDirection: 'row', gap: 12 }}>
-                           <View style={{ flex: 1 }}>
-                              <Text style={{ color: COLORS.text, fontWeight: 'bold', fontSize: 13, marginBottom: 4 }}>{t('before')} Photos:</Text>
-                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                                 {beforeRecord?.photoUris?.map((uri: string, idx: number) => (
-                                    <TouchableOpacity key={idx} onPress={() => setBeforePhotoIdx(idx)} style={{ marginRight: 8 }}>
-                                       <Image source={{ uri }} style={{ width: 50, height: 50, borderRadius: 6, borderWidth: beforePhotoIdx === idx ? 2 : 0, borderColor: COLORS.primary }} />
-                                    </TouchableOpacity>
-                                 ))}
-                              </ScrollView>
-                           </View>
-
-                           <View style={{ flex: 1 }}>
-                              <Text style={{ color: COLORS.text, fontWeight: 'bold', fontSize: 13, marginBottom: 4 }}>{t('after')} Photos:</Text>
-                              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: 12 }}>
-                                 {afterRecord?.photoUris?.map((uri: string, idx: number) => (
-                                    <TouchableOpacity key={idx} onPress={() => setAfterPhotoIdx(idx)} style={{ marginRight: 8 }}>
-                                       <Image source={{ uri }} style={{ width: 50, height: 50, borderRadius: 6, borderWidth: afterPhotoIdx === idx ? 2 : 0, borderColor: COLORS.primary }} />
-                                    </TouchableOpacity>
-                                 ))}
-                              </ScrollView>
-                           </View>
-                        </View>
-                     </View>
-
-                     <View style={{ flexDirection: 'row', gap: 10, marginTop: 10, paddingBottom: 20 }}>
-                        <TouchableOpacity style={[styles.reportActionBtn, { flex: 1 }]} onPress={handleShareComparison}>
-                           <Ionicons name="share-outline" size={18} color="#000" />
-                           <Text style={styles.reportActionText}>{t('share')}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={[styles.reportActionBtn, { flex: 1 }]} onPress={handleSaveComparison}>
-                           <Ionicons name="download-outline" size={18} color="#000" />
-                           <Text style={styles.reportActionText}>{t('save')}</Text>
-                        </TouchableOpacity>
-                     </View>
-                  </ScrollView>
                </View>
-            </View>
+            </GestureHandlerRootView>
          </Modal>
 
          {isSharingPdf && (
@@ -916,6 +1163,10 @@ const styles = StyleSheet.create({
    attendanceLabel: { color: COLORS.text, fontSize: 16, fontWeight: 'bold' },
    attendanceSub: { color: COLORS.textDim, fontSize: 12 },
    modalHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+   monthHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 12, paddingHorizontal: 4, borderBottomWidth: 1, borderBottomColor: 'rgba(255,255,255,0.05)' },
+   monthTitle: { color: COLORS.text, fontSize: 15, fontWeight: 'bold' },
+   monthBadge: { backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 10 },
+   monthBadgeText: { color: COLORS.primary, fontSize: 11, fontWeight: 'bold' },
    configGroup: { marginBottom: 24 },
    configRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
    configLabel: { color: COLORS.text, fontSize: 16, fontWeight: 'bold' },

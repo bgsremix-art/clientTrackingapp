@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import { db } from '../config/firebase';
 import { useAuth } from './AuthContext';
-import { Client, ProgressRecord, FoodLibraryItem, AppSettings, AttendanceRecord, UserProfile, AdminAppConfig, BakongAdminConfig } from '../models/types';
+import { Client, ProgressRecord, FoodLibraryItem, AppSettings, AttendanceRecord, UserProfile, AdminAppConfig, BakongAdminConfig, PaymentRecord } from '../models/types';
 import { translations } from '../utils/i18n';
 import { ADMIN_EMAILS } from '../constants/admin';
 
@@ -13,6 +13,7 @@ type ClientContextType = {
   records: ProgressRecord[];
   ingredients: FoodLibraryItem[];
   attendance: AttendanceRecord[];
+  payments: PaymentRecord[];
   settings: AppSettings;
   settingsLoaded: boolean;
   userProfile: UserProfile | null;
@@ -40,6 +41,8 @@ type ClientContextType = {
   restoreDefaultIngredients: () => void;
   toggleAttendance: (clientId: string, date: string, notes?: string, forceStatus?: boolean) => void;
   deleteAttendance: (id: string) => void;
+  addPayment: (payment: PaymentRecord) => void;
+  deletePayment: (id: string) => void;
 };
 
 const ClientContext = createContext<ClientContextType | undefined>(undefined);
@@ -135,6 +138,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   const [records, setRecords] = useState<ProgressRecord[]>([]);
   const [ingredients, setIngredients] = useState<FoodLibraryItem[]>([]);
   const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
   const [settings, setSettings] = useState<AppSettings>({ loseWeightCals: -500, gainMuscleCals: 300, gainWeightCals: 500, language: 'en' });
   const [settingsLoaded, setSettingsLoaded] = useState(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
@@ -157,6 +161,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
       setRecords([]);
       setIngredients([]);
       setAttendance([]);
+      setPayments([]);
       setSettingsLoaded(false);
       setUserProfile(null);
       setAdminUsers([]);
@@ -296,6 +301,10 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
       setAttendance(snap.docs.map(d => d.data() as AttendanceRecord));
     });
 
+    const unsubPayments = onSnapshot(collection(db, 'users', uid, 'payments'), (snap) => {
+      setPayments(snap.docs.map(d => d.data() as PaymentRecord));
+    });
+
     const unsubStorage = onSnapshot(collection(db, 'users', uid, 'storage_uploads'), (snap) => {
       const storageBytes = snap.docs.reduce((total, uploadDoc) => total + (Number(uploadDoc.data().bytes) || 0), 0);
       setDoc(profileRef, { 
@@ -312,6 +321,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
       unsubSettings();
       unsubIngredients();
       unsubAttendance();
+      unsubPayments();
       unsubStorage();
     };
   }, [user, user?.emailVerified]);
@@ -330,18 +340,20 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         clients.reduce((t, c) => t + estimateFirestoreDocBytes(`users/${uid}/clients/${c.id}`, c), 0) +
         records.reduce((t, r) => t + estimateFirestoreDocBytes(`users/${uid}/records/${r.id}`, r), 0) +
         ingredients.reduce((t, i) => t + estimateFirestoreDocBytes(`users/${uid}/ingredients/${i.id}`, i), 0) +
-        attendance.reduce((t, a) => t + estimateFirestoreDocBytes(`users/${uid}/attendance/${a.id}`, a), 0);
+        attendance.reduce((t, a) => t + estimateFirestoreDocBytes(`users/${uid}/attendance/${a.id}`, a), 0) +
+        payments.reduce((t, p) => t + estimateFirestoreDocBytes(`users/${uid}/payments/${p.id}`, p), 0);
 
-      const dailyReads = (clients.length * 25) + (records.length * 10) + (ingredients.length * 2) + (attendance.length * 10) + 150;
-      const dailyWrites = Math.max(5, Math.floor(records.length / 3) + Math.floor(attendance.length / 3) + 10);
+      const dailyReads = (clients.length * 25) + (records.length * 10) + (ingredients.length * 2) + (attendance.length * 10) + (payments.length * 5) + 150;
+      const dailyWrites = Math.max(5, Math.floor(records.length / 3) + Math.floor(attendance.length / 3) + Math.floor(payments.length / 3) + 10);
 
       await setDoc(profileRef, {
         clientCount: clients.length,
         recordCount: records.length,
         ingredientCount: ingredients.length,
         attendanceCount: attendance.length,
+        paymentCount: payments.length,
         firestoreBytes,
-        firestoreDocCount: 2 + clients.length + records.length + ingredients.length + attendance.length,
+        firestoreDocCount: 2 + clients.length + records.length + ingredients.length + attendance.length + payments.length,
         dailyReads,
         dailyWrites,
         lastActiveAt: new Date().toISOString()
@@ -350,7 +362,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
 
     const timeout = setTimeout(updateUsageStats, 3000); 
     return () => clearTimeout(timeout);
-  }, [user, clients.length, records.length, ingredients.length, attendance.length, settingsLoaded]);
+  }, [user, clients.length, records.length, ingredients.length, attendance.length, payments.length, settingsLoaded]);
 
   // Load and sync local-only branding (Gym Logo, Gym Name, Trainer Name)
   useEffect(() => {
@@ -524,11 +536,12 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
       const profile = profileSnap.exists() ? profileSnap.data() as Partial<UserProfile> : {};
       const settingsSnap = await getDoc(doc(db, 'users', uid, 'settings', 'app_settings'));
       const userSettings = settingsSnap.exists() ? settingsSnap.data() as AppSettings : null;
-      const [clientsSnap, recordsSnap, ingredientsSnap, attendanceSnap] = await Promise.all([
+      const [clientsSnap, recordsSnap, ingredientsSnap, attendanceSnap, paymentsSnap] = await Promise.all([
         getDocs(collection(db, 'users', uid, 'clients')),
         getDocs(collection(db, 'users', uid, 'records')),
         getDocs(collection(db, 'users', uid, 'ingredients')),
         getDocs(collection(db, 'users', uid, 'attendance')),
+        getDocs(collection(db, 'users', uid, 'payments')),
       ]);
       const storageUploadsSnap = await getDocs(collection(db, 'users', uid, 'storage_uploads'));
       const storageBytes = storageUploadsSnap.docs.reduce((total, uploadDoc) => {
@@ -542,6 +555,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         ...recordsSnap.docs.map(document => ({ path: document.ref.path, data: document.data() })),
         ...ingredientsSnap.docs.map(document => ({ path: document.ref.path, data: document.data() })),
         ...attendanceSnap.docs.map(document => ({ path: document.ref.path, data: document.data() })),
+        ...paymentsSnap.docs.map(document => ({ path: document.ref.path, data: document.data() })),
         ...storageUploadsSnap.docs.map(document => ({ path: document.ref.path, data: document.data() })),
       ];
       const firestoreBytes = firestoreDocs.reduce((total, document) => total + estimateFirestoreDocBytes(document.path, document.data), 0);
@@ -551,8 +565,8 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         ingredientsSnap.docs.filter(ingredientDoc => !!(ingredientDoc.data() as FoodLibraryItem).imageUri).length;
       const untrackedPhotoCount = Math.max(cloudPhotoCount - storageUploadsSnap.size, 0);
 
-      const dailyReads = (clientsSnap.size * 25) + (recordsSnap.size * 10) + (ingredientsSnap.size * 2) + (attendanceSnap.size * 10) + 150;
-      const dailyWrites = Math.max(5, Math.floor(recordsSnap.size / 3) + Math.floor(attendanceSnap.size / 3) + 10);
+      const dailyReads = (clientsSnap.size * 25) + (recordsSnap.size * 10) + (ingredientsSnap.size * 2) + (attendanceSnap.size * 10) + (paymentsSnap.size * 5) + 150;
+      const dailyWrites = Math.max(5, Math.floor(recordsSnap.size / 3) + Math.floor(attendanceSnap.size / 3) + Math.floor(paymentsSnap.size / 3) + 10);
 
       const updatedProfile: UserProfile = {
         ...profile,
@@ -569,6 +583,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
         recordCount: recordsSnap.size,
         ingredientCount: ingredientsSnap.size,
         attendanceCount: attendanceSnap.size,
+        paymentCount: paymentsSnap.size,
         firestoreBytes,
         firestoreDocCount: firestoreDocs.length,
         storageBytes,
@@ -613,6 +628,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
       deleteCollectionDocs(uid, 'records'),
       deleteCollectionDocs(uid, 'ingredients'),
       deleteCollectionDocs(uid, 'attendance'),
+      deleteCollectionDocs(uid, 'payments'),
     ]);
     await refreshAdminUsers();
   };
@@ -663,6 +679,9 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
     if (user) deleteDoc(doc(db, 'users', user.uid, 'attendance', id));
   };
 
+  const addPayment = (p: PaymentRecord) => { if (user) setDoc(doc(db, 'users', user.uid, 'payments', p.id), p); };
+  const deletePayment = (id: string) => { if (user) deleteDoc(doc(db, 'users', user.uid, 'payments', id)); };
+
   const t = (key: string) => {
     const lang = settings?.language || 'en';
     const dictionary = translations[lang as keyof typeof translations] || translations.en;
@@ -670,7 +689,7 @@ export const ClientProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   return (
-    <ClientContext.Provider value={{ clients, records, ingredients, attendance, settings, settingsLoaded, userProfile, isAdmin, adminUsers, adminAppConfig: mergedAdminAppConfig, bakongConfig, t, addClient, editClient, deleteClient, addRecord, editRecord, deleteRecord, addIngredient, editIngredient, deleteIngredient, restoreDefaultIngredients, updateSettings, refreshAdminUsers, updateUserProfile, updateUserSubscription, deleteUserData, updateAdminAppConfig, updateBakongToken, toggleAttendance, deleteAttendance }}>
+    <ClientContext.Provider value={{ clients, records, ingredients, attendance, payments, settings, settingsLoaded, userProfile, isAdmin, adminUsers, adminAppConfig: mergedAdminAppConfig, bakongConfig, t, addClient, editClient, deleteClient, addRecord, editRecord, deleteRecord, addIngredient, editIngredient, deleteIngredient, restoreDefaultIngredients, updateSettings, refreshAdminUsers, updateUserProfile, updateUserSubscription, deleteUserData, updateAdminAppConfig, updateBakongToken, toggleAttendance, deleteAttendance, addPayment, deletePayment }}>
       {children}
     </ClientContext.Provider>
   );

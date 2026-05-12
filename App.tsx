@@ -11,6 +11,7 @@ import ClientDetailScreen from './src/screens/ClientDetailScreen';
 import GenerateMealPlanScreen from './src/screens/GenerateMealPlanScreen';
 import ProgressRecordScreen from './src/screens/ProgressRecordScreen';
 import AttendanceScreen from './src/screens/AttendanceScreen';
+import FinanceScreen from './src/screens/FinanceScreen';
 
 import IngredientsLibraryScreen from './src/screens/IngredientsLibraryScreen';
 import AddIngredientScreen from './src/screens/AddIngredientScreen';
@@ -32,6 +33,7 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 const IngredientStack = createNativeStackNavigator();
 const AuthStack = createNativeStackNavigator();
 const AdminStack = createNativeStackNavigator();
+const FinanceStack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
 
 function ClientStackScreen() {
@@ -89,6 +91,20 @@ function AdminStackScreen() {
   );
 }
 
+function FinanceStackScreen() {
+  const { t } = useClients();
+  return (
+    <FinanceStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        contentStyle: { backgroundColor: COLORS.background },
+      }}
+    >
+      <FinanceStack.Screen name="FinanceHome" component={FinanceScreen} />
+    </FinanceStack.Navigator>
+  );
+}
+
 function MainApp() {
   const { t, isAdmin } = useClients();
   return (
@@ -98,6 +114,7 @@ function MainApp() {
           let iconName: keyof typeof Ionicons.glyphMap = 'people';
           if (route.name === 'Clients L') iconName = focused ? 'people' : 'people-outline';
           else if (route.name === 'Ingredients') iconName = focused ? 'restaurant' : 'restaurant-outline';
+          else if (route.name === 'Finance') iconName = focused ? 'cash' : 'cash-outline';
           else if (route.name === 'Subscription') iconName = focused ? 'card' : 'card-outline';
           else if (route.name === 'Admin') iconName = focused ? 'shield-checkmark' : 'shield-checkmark-outline';
           else if (route.name === 'Settings') iconName = focused ? 'settings' : 'settings-outline';
@@ -111,6 +128,7 @@ function MainApp() {
     >
       <Tab.Screen name="Clients L" component={ClientStackScreen} options={{ title: t('tabClients') }} />
       <Tab.Screen name="Ingredients" component={IngredientStackScreen} options={{ title: t('tabIngredients') }} />
+      <Tab.Screen name="Finance" component={FinanceStackScreen} options={{ title: t('tabFinance') }} />
       <Tab.Screen name="Subscription" component={SubscriptionScreen} options={{ title: t('subscription') }} />
       {isAdmin && <Tab.Screen name="Admin" component={AdminStackScreen} options={{ title: 'Admin' }} />}
       <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t('tabSettings') }} />
@@ -148,11 +166,15 @@ function RootNavigator() {
   );
 }
 
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+
 export default function App() {
   return (
-    <AuthProvider>
-      <StatusBar style="light" />
-      <RootNavigator />
-    </AuthProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AuthProvider>
+        <StatusBar style="light" />
+        <RootNavigator />
+      </AuthProvider>
+    </GestureHandlerRootView>
   );
 }
